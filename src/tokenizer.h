@@ -34,12 +34,25 @@
 #define TOK_COMMA   13
 #define TOK_LBRACKET 14
 #define TOK_RBRACKET 15
+#define TOK_COLON   16
 
 // other tokens
 #define TOK_INTEGER 30
+#define TOK_STRING  31
 #define TOK_IDENT   32
 
 #define TOK_EOF     99
+
+// keywords
+#define TOK_BEGIN   100
+#define TOK_END     101
+#define TOK_FOR     102
+#define TOK_TO      103
+#define TOK_DO      104
+#define TOK_VAR     105
+#define TOK_REPEAT  106
+#define TOK_UNTIL   107
+#define TOK_INTEGERKW 108
 
 #include <vector>
 #include <string>
@@ -52,6 +65,12 @@ struct token_t
   Reader::position_info pos;      // position withing the source
   uint32_t              tokID;    // token identifier
   std::string           txt;      // identifier, keyword or number string
+};
+
+struct keyword_t
+{
+    std::string txt;
+    uint32_t    ID;
 };
 
 class Tokenizer
@@ -76,8 +95,6 @@ public:
       return m_lastErrorPos;
   }
 
-  //OBSOLETE: void dumpTokens(std::ostream &stream, const std::vector<token_t> &tokens);
-
 protected:
   bool isDigit(char c) const;
   bool isWhitespace(char c) const;
@@ -92,10 +109,13 @@ protected:
                     S_LARGER,
                     S_SMALLER,
                     S_COMMENT,
+                    S_STRING,
                     S_DONE};
 
   std::string                   m_lastError;
   Reader::position_info         m_lastErrorPos;
+
+  std::vector<keyword_t>        m_keywords;
 };
 
 

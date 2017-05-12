@@ -19,6 +19,34 @@
 
 Tokenizer::Tokenizer()
 {
+    keyword_t kw;
+    kw.txt = "BEGIN";
+    kw.ID  = TOK_BEGIN;
+    m_keywords.push_back(kw);
+    kw.txt = "END";
+    kw.ID  = TOK_END;
+    m_keywords.push_back(kw);
+    kw.txt = "FOR";
+    kw.ID  = TOK_FOR;
+    m_keywords.push_back(kw);
+    kw.txt = "TO";
+    kw.ID  = TOK_TO;
+    m_keywords.push_back(kw);
+    kw.txt = "REPEAT";
+    kw.ID  = TOK_REPEAT;
+    m_keywords.push_back(kw);
+    kw.txt = "UNTIL";
+    kw.ID  = TOK_UNTIL;
+    m_keywords.push_back(kw);
+    kw.txt = "DO";
+    kw.ID  = TOK_DO;
+    m_keywords.push_back(kw);
+    kw.txt = "VAR";
+    kw.ID  = TOK_VAR;
+    m_keywords.push_back(kw);
+    kw.txt = "INTEGER";
+    kw.ID  = TOK_INTEGERKW;
+    m_keywords.push_back(kw);
 }
 
 bool Tokenizer::isDigit(char c) const
@@ -226,6 +254,19 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
                 result.push_back(tok);
                 r->accept();
             }
+            else if (c == ':')
+            {
+                tok.tokID = TOK_COLON;
+                result.push_back(tok);
+                r->accept();
+            }
+            else if (c == '\'')
+            {
+                // start of a string
+                tok.txt = "";
+                state = S_STRING;
+                r->accept();
+            }
             else if (isNumeric(c))
             {
                 // we could have an integer,
@@ -268,8 +309,27 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
                 tok.txt += c;
                 r->accept();
             }
-            state = S_BEGIN;
-
+            else
+            {
+                bool found = false;
+                for(uint32_t i=0; i<m_keywords.size(); i++)
+                {
+                    if (tok.txt == m_keywords[i].txt)
+                    {
+                        tok.tokID = m_keywords[i].ID;
+                        result.push_back(tok);
+                        found = true;
+                    }
+                }
+                if (!found)
+                {
+                    // if we end up here, it must be an
+                    // identifier!
+                    tok.tokID = TOK_IDENT;
+                    result.push_back(tok);
+                }
+                state = S_BEGIN;
+            }
 #if 0
             else
             {
@@ -326,6 +386,22 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
             else
             {
                 state = S_BEGIN;
+            }
+            break;
+        case S_STRING:
+            // keep adding characters until we find a closing
+            // character
+            if (c=='\'')
+            {
+                tok.tokID = TOK_STRING;
+                result.push_back(tok);
+                state = S_BEGIN;
+                r->accept();
+            }
+            else
+            {
+                tok.txt += c;
+                r->accept();
             }
             break;
         case S_DONE:

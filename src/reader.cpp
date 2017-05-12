@@ -23,13 +23,13 @@ Reader::~Reader()
 
 Reader* Reader::create(const char *filename)
 {
-    Reader *reader = new Reader();
-
     FILE *fin = fopen(filename, "rt");
     if (fin == 0)
     {
         return NULL;
     }
+
+    Reader *reader = new Reader();
 
     fseek(fin, 0, SEEK_END);
     size_t bytes = ftell(fin);
