@@ -13,21 +13,45 @@
 #include <iostream>
 #include "reader.h"
 #include "tokenizer.h"
+#include "parser.h"
+
+#define __VERSION__ "0.1"
 
 int main(int argc, char *argv[])
 {
+    printf("Micro Pascal version " __VERSION__"\n");
+    printf("By Niels Moseley\n");
+    printf("www.moseleyinstruments.com\n\n");
+
+    printf("Tokenizing..\n");
     Reader *reader = Reader::create("tests\\tokentest.pas");
     Tokenizer tokenizer;
 
     std::vector<token_t> tokens;
-
     tokenizer.process(reader, tokens);
+    delete reader;
 
+    printf("Dumping tokens:\n");
     for(uint32_t i=0; i<tokens.size(); i++)
     {
-        std::cout << tokens[i].tokID << " = " << tokens[i].txt << "\n";
+        printf("ID: %d -> %s\n", tokens[i].tokID, tokens[i].txt.c_str());
     }
 
-    delete reader;
+    printf("Parsing..\n");
+    ParseContext context;
+    Parser parser;
+
+    if (parser.process(tokens, context))
+    {
+        // ok!
+        printf("Parsing successful\n");
+
+        AST::dumpASTree(context.m_astHead);
+    }
+    else
+    {
+        printf("Parsing failed\n");
+    }
+
     return 0;
 }

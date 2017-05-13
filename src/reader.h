@@ -1,9 +1,11 @@
 /*
 
   Source code reader for the Micro Pascal language
-  Niels A. Moseley 2017
+  Copyright Niels A. Moseley 2017
   Moseley Instruments
   http://www.moseleyinstruments.com
+
+  Licence: GPL v2.0
 
 */
 

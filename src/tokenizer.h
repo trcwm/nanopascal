@@ -1,9 +1,11 @@
 /*
 
   Tokenizer for the Micro Pascal
-  Niels A. Moseley 2017
+  Copyright Niels A. Moseley 2017
   Moseley Instruments
   http://www.moseleyinstruments.com
+
+  Licence: GPL v2.0
 
 */
 
@@ -31,6 +33,7 @@
 #define TOK_SMALLER 9
 #define TOK_EQUAL   10
 #define TOK_SLASH   11
+#define TOK_ASSIGN  12
 #define TOK_COMMA   13
 #define TOK_LBRACKET 14
 #define TOK_RBRACKET 15
@@ -53,6 +56,8 @@
 #define TOK_REPEAT  106
 #define TOK_UNTIL   107
 #define TOK_INTEGERKW 108
+#define TOK_CONST   109
+#define TOK_DOWNTO  110
 
 #include <vector>
 #include <string>
@@ -108,6 +113,7 @@ protected:
                     S_INTEGER,
                     S_LARGER,
                     S_SMALLER,
+                    S_ASSIGN,
                     S_COMMENT,
                     S_STRING,
                     S_DONE};

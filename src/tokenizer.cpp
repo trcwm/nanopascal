@@ -47,6 +47,12 @@ Tokenizer::Tokenizer()
     kw.txt = "INTEGER";
     kw.ID  = TOK_INTEGERKW;
     m_keywords.push_back(kw);
+    kw.txt = "CONST";
+    kw.ID  = TOK_CONST;
+    m_keywords.push_back(kw);
+    kw.txt = "DOWNTO";
+    kw.ID  = TOK_DOWNTO;
+    m_keywords.push_back(kw);
 }
 
 bool Tokenizer::isDigit(char c) const
@@ -157,9 +163,10 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
             }
             else if (c == 10)   // character is newline?
             {
-                // emit a newline
-                tok.tokID = TOK_NEWLINE;
-                result.push_back(tok);
+                // don't emit newlines for PASCAL!
+                //
+                //tok.tokID = TOK_NEWLINE;
+                //result.push_back(tok);
                 r->accept();
             }
             else if (c == 13)   // character is a carriage return?
@@ -193,6 +200,9 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
             }
             else if (c == '=')
             {
+                // this could be an equal sign
+                // or an assignment operator :=
+                //
                 tok.tokID = TOK_EQUAL;
                 result.push_back(tok);
                 r->accept();
@@ -256,8 +266,12 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
             }
             else if (c == ':')
             {
-                tok.tokID = TOK_COLON;
-                result.push_back(tok);
+                // this can be : or :=
+                // so we check for assignment
+                // operator first
+                //tok.tokID = TOK_COLON;
+                //result.push_back(tok);
+                state = S_ASSIGN;
                 r->accept();
             }
             else if (c == '\'')
@@ -301,6 +315,25 @@ bool Tokenizer::process(Reader *r, std::vector<token_t> &result)
             // character!
             tok.tokID = TOK_SMALLER;
             result.push_back(tok);
+            state = S_BEGIN;
+            break;
+        case S_ASSIGN:
+            // if we have an '=',
+            // it is an assignment
+            // otherwise it's just ':'
+            if (c == '=')
+            {
+                tok.tokID = TOK_ASSIGN;
+                result.push_back(tok);
+                r->accept();
+            }
+            else
+            {
+                // we don't accept the current
+                // character here!
+                tok.tokID = TOK_COLON;
+                result.push_back(tok);
+            }
             state = S_BEGIN;
             break;
         case S_IDENT:   // read in keywords and identifiers
