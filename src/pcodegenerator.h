@@ -72,6 +72,8 @@ protected:
 
     // special compound statements handled here:
     void handleForStatement(const AST::ASTNode *forNode);
+    void handleIfStatement(const AST::ASTNode *ifNode);
+    void handleWriteFunction(const AST::ASTNode *writeNode);
 
     // substitute the label address in the VM
     // instruction stream based on the

@@ -53,6 +53,18 @@ Tokenizer::Tokenizer()
     kw.txt = "DOWNTO";
     kw.ID  = TOK_DOWNTO;
     m_keywords.push_back(kw);
+    kw.txt = "IF";
+    kw.ID  = TOK_IF;
+    m_keywords.push_back(kw);
+    kw.txt = "THEN";
+    kw.ID  = TOK_THEN;
+    m_keywords.push_back(kw);
+    kw.txt = "ELSE";
+    kw.ID  = TOK_ELSE;
+    m_keywords.push_back(kw);
+    kw.txt = "WRITE";
+    kw.ID  = TOK_WRITE;
+    m_keywords.push_back(kw);
 }
 
 bool Tokenizer::isDigit(char c) const

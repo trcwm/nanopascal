@@ -53,15 +53,17 @@ enum ASTNodeType
     NODE_STATEMENT,
     NODE_EXPR,
     NODE_IDENT,
-    NODE_CONSTINTEGER,
+    NODE_DECLCONSTINTEGER,
     NODE_CONSTSTRING,
     NODE_DECLVARINTEGER,
     NODE_USEVARINTEGER,
     NODE_FORSTATEMENT,
+    NODE_IFSTATEMENT,
     NODE_LOGIC,
     NODE_ARITH,
     NODE_LITERALINTEGER,
-    NODE_ASSIGN
+    NODE_ASSIGN,
+    NODE_WRITE
 };
 
 enum ASTNodeOperationType
@@ -98,7 +100,8 @@ struct ASTNode
     ASTNodeType             m_type;       // node type
     std::vector<ASTNode*>   m_children;   // child nodes, from left to right
 
-    std::string             m_txt;        // ident name or const string.
+    std::string             m_txt;        // ident name
+    std::string             m_string;     // string (const) value
     int32_t                 m_integer;    // integer, for inc/dec
     ASTNodeOperationType    m_optype;     // logic type
 };

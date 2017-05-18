@@ -25,8 +25,19 @@ int main(int argc, char *argv[])
     printf("By Niels Moseley\n");
     printf("www.moseleyinstruments.com\n\n");
 
+    if (argc < 2)
+    {
+        printf("Usage: %s <infile.pas>", argv[0]);
+        return 1;
+    }
+
     printf("Tokenizing..\n");
-    Reader *reader = Reader::create("tests\\tokentest.pas");
+    Reader *reader = Reader::create(argv[1]);
+    if (reader == NULL)
+    {
+        return 1;
+    }
+
     Tokenizer tokenizer;
 
     std::vector<token_t> tokens;
@@ -36,7 +47,7 @@ int main(int argc, char *argv[])
     printf("Dumping tokens:\n");
     for(uint32_t i=0; i<tokens.size(); i++)
     {
-        printf("ID: %d -> %s\n", tokens[i].tokID, tokens[i].txt.c_str());
+        printf("%03d ID: %d -> %s\n", i, tokens[i].tokID, tokens[i].txt.c_str());
     }
 
     printf("Parsing..\n");
@@ -57,9 +68,16 @@ int main(int argc, char *argv[])
         printf("Disassembled VM code:\n");
         VM::disassemble(code);
 
-        FILE *fout=fopen("tests\\bytecode.dat", "wb");
-        fwrite(&code[0], 1, code.size(), fout);
-        fclose(fout);
+        if (code.size() == 0)
+        {
+            printf("Error: code generator didn't emit any code!\n");
+        }
+        else
+        {
+            FILE *fout=fopen("tests\\bytecode.dat", "wb");
+            fwrite(&code[0], 1, code.size(), fout);
+            fclose(fout);
+        }
     }
     else
     {

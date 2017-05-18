@@ -45,7 +45,7 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case NODE_IDENT:
         printf("IDENT %s\n", node->m_txt.c_str());
         break;
-    case NODE_CONSTINTEGER:
+    case NODE_DECLCONSTINTEGER:
         printf("%d\n", node->m_integer);
         break;
     case NODE_CONSTSTRING:
@@ -59,6 +59,16 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
         break;
     case NODE_FORSTATEMENT:
         printf("FOR %s (update=%d)\n", node->m_txt.c_str(), node->m_integer);
+        break;
+    case NODE_IFSTATEMENT:
+        if (node->m_children.size() == 3)
+        {
+            printf("IF THEN ELSE\n");
+        }
+        else
+        {
+            printf("IF THEN\n");
+        }
         break;
     case NODE_LOGIC:
     case NODE_ARITH:
@@ -113,6 +123,9 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
         break;
     case NODE_ASSIGN:
         printf("%s :=\n", node->m_txt.c_str());
+        break;
+    case NODE_WRITE:
+        printf("WRITE\n");
         break;
     }
 

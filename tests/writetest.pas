@@ -1,0 +1,7 @@
+VAR K : INTEGER;
+BEGIN
+    FOR K:=20 DOWNTO 1 DO
+    BEGIN
+       WRITE(K*K);
+    END
+END

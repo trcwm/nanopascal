@@ -58,6 +58,10 @@
 #define TOK_INTEGERKW 108
 #define TOK_CONST   109
 #define TOK_DOWNTO  110
+#define TOK_IF      111
+#define TOK_THEN    112
+#define TOK_ELSE    113
+#define TOK_WRITE   114
 
 #include <vector>
 #include <string>

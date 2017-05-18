@@ -27,6 +27,7 @@ struct SymbolInfo
     }
 
     std::string m_name;
+    std::string m_string;
     enum SymType {TYPE_NONE=0, TYPE_UINT16, TYPE_CHAR, TYPE_STRING} m_type;
     bool    m_global;
     bool    m_constant;
@@ -106,6 +107,32 @@ public:
                 m_offset+=2;
                 break;
             }
+        }
+        else
+        {
+            //TODO: handle global variables
+            // or constants
+        }
+        m_symbols.push_back(s);
+    }
+
+    /** add a string constant symbol to the symbol table */
+    void addSymbol(const std::string &name, const std::string &txt, bool global = false)
+    {
+        SymbolInfo s;
+        s.m_name = name;
+        s.m_type = SymbolInfo::TYPE_STRING;
+        s.m_string = txt;
+        s.m_string += '\0'; // add NULL terminator
+        s.m_constant = true;
+
+        // automatically calculate the local
+        // address/offset if it's not a
+        // global variable
+        if (!global)
+        {
+            s.m_address = m_offset;
+            m_offset += s.m_string.size();
         }
         else
         {

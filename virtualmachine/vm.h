@@ -47,6 +47,7 @@ typedef enum
     VM_NOT      = 21,       // binary inverse of top of stack (-)
     VM_INC      = 22,       // increment top of stack (-)
     VM_DEC      = 23,       // decrement top of stack (-)
+    VM_WRITE    = 24,       // write top of stack to console (stack: 1 off)
     VM_DONE     = 0xFF
 } vm_command_t;
 

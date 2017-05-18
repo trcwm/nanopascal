@@ -110,8 +110,19 @@ bool vm_execute(vm_context_t *c)
         break;
     case VM_CL:
         c->dsp++;
-        printf("CL: %04X %04X\n", c->dstack[c->dsp], c->dstack[c->dsp+1]);
-        if ((c->dstack[c->dsp]) < (c->dstack[c->dsp+1]))
+        if ((c->dstack[c->dsp+1]) < (c->dstack[c->dsp]))
+        {
+            c->dstack[c->dsp+1] = 1;
+        }
+        else
+        {
+            c->dstack[c->dsp+1] = 0;
+        }
+        c->pc++;
+        break;
+    case VM_CLE:
+        c->dsp++;
+        if ((c->dstack[c->dsp+1]) <= (c->dstack[c->dsp]))
         {
             c->dstack[c->dsp+1] = 1;
         }
@@ -123,13 +134,25 @@ bool vm_execute(vm_context_t *c)
         break;
     case VM_CG:
         c->dsp++;
-        if ((c->dstack[c->dsp]) < (c->dstack[c->dsp+1]))
+        if ((c->dstack[c->dsp+1]) > (c->dstack[c->dsp]))
         {
             c->dstack[c->dsp+1] = 1;
         }
         else
         {
-            c->dstack[c->dsp-1] = 0;
+            c->dstack[c->dsp+1] = 0;
+        }
+        c->pc++;
+        break;
+    case VM_CGE:
+        c->dsp++;
+        if ((c->dstack[c->dsp+1]) >= (c->dstack[c->dsp]))
+        {
+            c->dstack[c->dsp+1] = 1;
+        }
+        else
+        {
+            c->dstack[c->dsp+1] = 0;
         }
         c->pc++;
         break;
@@ -191,6 +214,11 @@ bool vm_execute(vm_context_t *c)
             // true, jump
             c->pc = getWordFromPMEM(c,c->pc+1);
         }
+        break;
+    case VM_WRITE:
+        c->dsp++;
+        printf("%d\n", c->dstack[c->dsp]);
+        c->pc++;
         break;
     default:
         printf("Unknown instruction at address %04X -- aborting!\n", c->pc);

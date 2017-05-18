@@ -88,6 +88,22 @@ void VM::disassemble(const std::vector<uint8_t> &bytecode, bool bigEndian)
             printf("%04X CG\n", idx);
             idx++;
             break;
+        case VM_CLE:
+            printf("%04X CLE\n", idx);
+            idx++;
+            break;
+        case VM_CGE:
+            printf("%04X CGE\n", idx);
+            idx++;
+            break;
+        case VM_CEQ:
+            printf("%04X CEQ\n", idx);
+            idx++;
+            break;
+        case VM_CNE:
+            printf("%04X CNE\n", idx);
+            idx++;
+            break;
         case VM_JMP:
             printf("%04X JMP %04X\n", idx, getWord(bytecode[idx+1], bytecode[idx+2]));
             idx+=3;
@@ -115,6 +131,10 @@ void VM::disassemble(const std::vector<uint8_t> &bytecode, bool bigEndian)
         case VM_JZ:
             printf("%04X JZ %04X\n", idx, getWord(bytecode[idx+1], bytecode[idx+2]));
             idx+=3;
+            break;
+        case VM_WRITE:
+            printf("%04X WRITE\n", idx);
+            idx++;
             break;
         default:
             printf("%04X UNKNOWN (%d)\n", idx, bytecode[idx]);

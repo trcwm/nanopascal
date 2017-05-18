@@ -47,6 +47,18 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         return;
     }
 
+    if (node->m_type == AST::NODE_IFSTATEMENT)
+    {
+        handleIfStatement(node);
+        return;
+    }
+
+    if (node->m_type == AST::NODE_WRITE)
+    {
+        handleWriteFunction(node);
+        return;
+    }
+
     // do stuff upon entering the node
     SymbolTable::ScopedTable *newScope;
     switch(node->m_type)
@@ -188,17 +200,32 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         break;
     case AST::NODE_DECLVARINTEGER:
         m_emitReserve = true; // we have local variables!
-        m_curSymScope->addSymbol(node->m_txt.c_str(), SymbolTable::SymbolInfo::TYPE_UINT16);
+        m_curSymScope->addSymbol(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         printf("DECLARE %s\n", node->m_txt.c_str());
         break;
-    case AST::NODE_CONSTINTEGER:
-        // note: we just emit constants in the instruction stream
-        // no need to use a local var as the overhead is
-        // exactly the same!
+    case AST::NODE_DECLCONSTINTEGER:
+        //m_emitReserve = true; // we have local variables!
+        //m_curSymScope->addSymbol(node->m_txt, node->m_string);
+        //printf("DECLARE %s\n", node->m_txt.c_str());
         printf("LIT $%04X (%d dec)\n", node->m_integer, node->m_integer);
         VMEmitInstruction(VM::VM_LIT, static_cast<uint16_t>(node->m_integer));
         break;
-
+    case AST::NODE_CONSTSTRING:
+        // push the address of the string onto the
+        // stack.
+        // lookup the variable offset
+        info = m_curSymScope->lookupSymbol(node->m_txt.c_str());
+        if (info == NULL)
+        {
+            std::stringstream ss;
+            ss << "Error constant string " << node->m_txt << "  does not exist!";
+            error(ss.str());
+        }
+        else
+        {
+            printf("LIT $%04X (%d dec); const string %s\n", info->m_address, info->m_address, node->m_txt.c_str());
+        }
+        break;
         // nodes that do nothing..
     case AST::NODE_PROGBLOCK:
     case AST::NODE_CONSTDECL:
@@ -245,13 +272,13 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     // TODO: check if these are correct later
     if (forNode->m_integer < 0)
     {
-        printf("<\n");
-        VMEmitInstruction(VM::VM_CL);
+        printf(">=\n");
+        VMEmitInstruction(VM::VM_CGE);
     }
     else
     {
-        printf(">\n");
-        VMEmitInstruction(VM::VM_CG);
+        printf("<=\n");
+        VMEmitInstruction(VM::VM_CLE);
     }
 
     printf("JNZ LOOPEXIT\n");
@@ -272,7 +299,7 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     else
     {
         printf("INC\n");
-        VMEmitInstruction(VM::VM_DEC);
+        VMEmitInstruction(VM::VM_INC);
     }
 
     printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());   // store loop variable
@@ -283,6 +310,57 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
 
     printf("LOOPEXIT:\n");
     VMSetLabelAddress(loopExitID, getCurrentEmitAddress());
+}
+
+
+void PCodeGenerator::handleIfStatement(const AST::ASTNode *ifNode)
+{
+    // IF statement node has 2 or 3 child nodes:
+    // expr, THEN statement and optional ELSE statement.
+    //
+    // Emit:
+    //      expr code
+    //      JZ skipthen
+    //      statement1 code
+    //      JMP ifend
+    // skipthen:
+    //      statement2 code (optional)
+    // ifend:
+    //
+
+    processNode(ifNode->m_children[0]); // emit expr code
+
+    uint16_t skipthenID = VMEmitLabel();
+    VMEmitInstructionWithLabel(VM::VM_JZ, skipthenID);
+
+    processNode(ifNode->m_children[1]);    // emit statement 1 code
+
+    uint16_t ifendID = VMEmitLabel();
+    VMEmitInstructionWithLabel(VM::VM_JMP, ifendID);
+
+    // emit skipthen label
+    VMSetLabelAddress(skipthenID, getCurrentEmitAddress());
+
+    // optionally emit statement2
+    if (ifNode->m_children.size() > 2)
+    {
+        processNode(ifNode->m_children[2]);    // emit statement 2 code
+    }
+
+    // emit ifend label
+    VMSetLabelAddress(ifendID, getCurrentEmitAddress());
+}
+
+void PCodeGenerator::handleWriteFunction(const AST::ASTNode *writeNode)
+{
+    // simply emit a write instruction for every argument
+    // for now we'll assume they're all integers
+    for(size_t i=0; i<writeNode->m_children.size(); i++)
+    {
+        // emit argument
+        processNode(writeNode->m_children[i]);
+        VMEmitInstruction(VM::VM_WRITE);
+    }
 }
 
 void PCodeGenerator::error(const std::string &str)

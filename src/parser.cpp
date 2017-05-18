@@ -123,7 +123,7 @@ AST::ASTNode* Parser::acceptBlock(ParseContext &context)
 
 AST::ASTNode* Parser::acceptProgBlock(ParseContext &s)
 {
-    /** production: prog_block -> BEGIN (STATEMENT)* END */
+    /** production: prog_block -> BEGIN (statement)* END */
     AST::ASTNode *prgblock = new AST::ASTNode(AST::NODE_PROGBLOCK);
 
     ParseContext savestate = s;
@@ -134,18 +134,23 @@ AST::ASTNode* Parser::acceptProgBlock(ParseContext &s)
     }
 
     // eat all the statements
-    bool accepted = true;
-    while(accepted)
+    do
     {
-        accepted = false;
         AST::ASTNode *node = acceptStatement(s);
         if (node != 0)
         {
             // add statement to the program block
             prgblock->m_children.push_back(node);
-            accepted = true;
         }
-    }
+        /*
+        else if (match(s, TOK_END))
+        {
+            // allow the END to appear after a semicol
+            // for convenience
+            return prgblock;
+        }
+        */
+    } while(match(s, TOK_SEMICOL));
 
     // we must have an END token here
     savestate = s;
@@ -163,7 +168,7 @@ AST::ASTNode* Parser::acceptProgBlock(ParseContext &s)
 
 AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
 {
-    /** production: constdecl -> CONST IDENT = CONSTANT ; (const_opt)* */
+    /** production: constdecl -> CONST (IDENT = CONSTANT ;)+ */
     ParseContext savestate = s;
     if (!match(s,TOK_CONST))
     {
@@ -183,6 +188,9 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
         return NULL;
     }
 
+    // save identifier for later
+    std::string ident = getToken(s,-2).txt;
+
     AST::ASTNode *constant = acceptConstant(s);
     if (constant == 0)
     {
@@ -198,6 +206,7 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
     }
 
     AST::ASTNode *constdecl = new AST::ASTNode(AST::NODE_CONSTDECL);
+    constant->m_txt = ident;
     constdecl->m_children.push_back(constant);
 
     // we have found one constant,
@@ -205,6 +214,19 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
 
     do
     {
+        constant = NULL;
+        if (!match(s,TOK_IDENT))
+        {
+            break;
+        }
+
+        if (!match(s,TOK_EQUAL))
+        {
+            break;
+        }
+
+        ident = getToken(s,-2).txt;
+
         constant = acceptConstant(s);
         if (constant != NULL)
         {
@@ -215,9 +237,17 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
                 error(s,"Expected a semicolon");
                 delete constant;
                 delete constdecl;
+                s = savestate;
                 return NULL;
             }
+            constant->m_txt = ident;
             constdecl->m_children.push_back(constant);
+        }
+        else
+        {
+            error(s, "Constant expected");
+            s = savestate;
+            return NULL;
         }
     }
     while(constant != NULL);
@@ -303,7 +333,7 @@ AST::ASTNode* Parser::acceptConstant(ParseContext &s)
     //   TOK_STRING
     if (match(s, TOK_INTEGER))
     {
-        node = new AST::ASTNode(AST::NODE_CONSTINTEGER);
+        node = new AST::ASTNode(AST::NODE_DECLCONSTINTEGER);
         std::string number= getToken(s, -1).txt;
         node->m_integer = atoi(number.c_str());
         return node;
@@ -311,7 +341,7 @@ AST::ASTNode* Parser::acceptConstant(ParseContext &s)
     if (match(s, TOK_STRING))
     {
         node = new AST::ASTNode(AST::NODE_CONSTSTRING);
-        node->m_txt = getToken(s, -1).txt;
+        node->m_string = getToken(s, -1).txt;
         return node;
     }
     return NULL;
@@ -320,7 +350,7 @@ AST::ASTNode* Parser::acceptConstant(ParseContext &s)
 AST::ASTNode* Parser::acceptStatement(ParseContext &s)
 {
     // for testing purposes,
-    // statement -> FOR statement | progblock | assignment
+    // statement -> FOR statement | IF statement | progblock | assignment
 
     // is it a FOR statement?
     AST::ASTNode *statement = acceptForStatement(s);
@@ -329,8 +359,22 @@ AST::ASTNode* Parser::acceptStatement(ParseContext &s)
         return statement;
     }
 
+    // is it an IF statement?
+    statement = acceptIfStatement(s);
+    if (statement != NULL)
+    {
+        return statement;
+    }
+
     // is this an assigment?
     statement = acceptAssignment(s);
+    if (statement != NULL)
+    {
+        return statement;
+    }
+
+    // is it a WRITE function?
+    statement = acceptWriteFunction(s);
     if (statement != NULL)
     {
         return statement;
@@ -437,9 +481,116 @@ AST::ASTNode* Parser::acceptForStatement(ParseContext &s)
     return fornode;
 }
 
+
+AST::ASTNode* Parser::acceptIfStatement(ParseContext &s)
+{
+    // production: forstatement ->
+    //   IF expression THEN statement (ELSE statement | epsilon)
+
+    ParseContext savestate = s;
+    if (!match(s,TOK_IF))
+    {
+        return NULL;
+    }
+
+    AST::ASTNode *expr = acceptExpression(s);
+    if (expr == NULL)
+    {
+        error(s, "Expression expected after IF keyword");
+        s = savestate;
+        return NULL;
+    }
+
+    if (!match(s,TOK_THEN))
+    {
+        error(s, "THEN keyword expected");
+        delete expr;
+        s = savestate;
+        return NULL;
+    }
+
+    AST::ASTNode *statement = acceptStatement(s);
+    if (statement == NULL)
+    {
+        error(s, "Statement expected after THEN keyword");
+        delete expr;
+        s = savestate;
+        return NULL;
+    }
+
+    // check for optional ELSE
+    AST::ASTNode *elseStatement = NULL;
+    if (match(s,TOK_ELSE))
+    {
+        elseStatement = acceptStatement(s);
+        if (elseStatement == NULL)
+        {
+            error(s, "Statement expected after ELSE keyword");
+            delete expr;
+            delete statement;
+            s = savestate;
+            return NULL;
+        }
+    }
+
+    // create IF node
+    AST::ASTNode *ifnode = new AST::ASTNode(AST::NODE_IFSTATEMENT);
+    ifnode->m_children.push_back(expr);
+    ifnode->m_children.push_back(statement);
+    if (elseStatement != NULL)
+    {
+        ifnode->m_children.push_back(elseStatement);
+    }
+
+    return ifnode;
+}
+
+
+AST::ASTNode* Parser::acceptWriteFunction(ParseContext &s)
+{
+    // WRITE '(' expression (, expression)* ')'
+
+    ParseContext savestate = s;
+    if (!match(s, TOK_WRITE))
+    {
+        return NULL;
+    }
+
+    if (!match(s, TOK_LPAREN))
+    {
+        error(s,"Expected left parentheses after WRITE function");
+        return NULL;
+    }
+
+    AST::ASTNode *writeNode = new AST::ASTNode(AST::NODE_WRITE);
+    do
+    {
+        AST::ASTNode *expr = acceptExpression(s);
+        if (expr == NULL)
+        {
+            error(s, "Expected an expression in WRITE function argument");
+            delete writeNode;
+            s = savestate;
+            return NULL;
+        }
+        writeNode->m_children.push_back(expr);
+    } while(match(s, TOK_COMMA));
+
+    if (!match(s, TOK_RPAREN))
+    {
+        error(s, "Expected closing parentheses in WRITE function");
+        delete writeNode;
+        s = savestate;
+        return NULL;
+    }
+
+    return writeNode;
+}
+
+
 AST::ASTNode* Parser::acceptAssignment(ParseContext &s)
 {
-    // assignment -> IDENT := expression ;
+    // assignment -> IDENT := expression
     ParseContext savestate = s;
 
     if (!match(s, TOK_IDENT))
@@ -465,13 +616,6 @@ AST::ASTNode* Parser::acceptAssignment(ParseContext &s)
     AST::ASTNode *assign = new AST::ASTNode(AST::NODE_ASSIGN);
     assign->m_txt = name;
     assign->m_children.push_back(expr);
-
-    if (!match(s, TOK_SEMICOL))
-    {
-        error(s,"Semicolon expected at end of assignment statement");
-        delete assign;
-        return NULL;
-    }
 
     return assign;
 }
@@ -711,6 +855,7 @@ AST::ASTNode* Parser::acceptFactor(ParseContext &s)
 
     if (match(s, TOK_IDENT))
     {
+        // TODO: lookup the variable
         // assume it's a variable
         AST::ASTNode *variable = new AST::ASTNode(AST::NODE_USEVARINTEGER);
         variable->m_txt = getToken(s,-1).txt;
