@@ -11,9 +11,11 @@
 
 //#include "functiondefs.h"
 #include <iostream>
+#include <stdio.h>
 #include "reader.h"
 #include "tokenizer.h"
 #include "parser.h"
+#include "pcodegenerator.h"
 
 #define __VERSION__ "0.1"
 
@@ -47,6 +49,17 @@ int main(int argc, char *argv[])
         printf("Parsing successful\n");
 
         AST::dumpASTree(context.m_astHead);
+
+        std::vector<uint8_t> code;
+        PCodeGenerator generator(false);
+        generator.process(context.m_astHead, code);
+
+        printf("Disassembled VM code:\n");
+        VM::disassemble(code);
+
+        FILE *fout=fopen("tests\\bytecode.dat", "wb");
+        fwrite(&code[0], 1, code.size(), fout);
+        fclose(fout);
     }
     else
     {

@@ -13,3 +13,8 @@ Micro Pascal implements a subset of the Pascal langauge. For instance, it does n
 # Implementation
 A tokenizer tokenizes the source code into an array of tokens. The parser takes the tokens and checks the grammar of program. At the same time, it produces an abstract syntax tree.
 
+# Building the cross-compiler
+The cross-compiler should compile on Windows, Linux and OSX. To build the software, install QtCreator and Qt5.x on your platform of choice. Using QtCreator, open the .pro project file. It will probably ask you to configure the project for your compiler. When done, select Build All from the menu.
+
+# Ready-made binaries
+At this time, there are no ready-made binaries available.

@@ -44,7 +44,6 @@ public:
     }
 #endif
 
-    std::vector<AST::IdentInfo> m_variables;
     AST::ASTNode*               m_astHead;
 };
 

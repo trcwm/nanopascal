@@ -51,8 +51,11 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case NODE_CONSTSTRING:
         printf("%s\n", node->m_txt.c_str());
         break;
-    case NODE_VARINTEGER:
-        printf("VAR %s\n", node->m_txt.c_str());
+    case NODE_DECLVARINTEGER:
+        printf("DECLARE VAR %s\n", node->m_txt.c_str());
+        break;
+    case NODE_USEVARINTEGER:
+        printf("LOAD VAR %s\n", node->m_txt.c_str());
         break;
     case NODE_FORSTATEMENT:
         printf("FOR %s (update=%d)\n", node->m_txt.c_str(), node->m_integer);

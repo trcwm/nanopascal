@@ -19,6 +19,7 @@
 namespace AST
 {
 
+#if 0
 enum IdentType
 {
     VI_UNDEFINED = 0,
@@ -38,6 +39,8 @@ struct IdentInfo
     std::string     m_name;     // variable name
     uint32_t        m_flags;    // VIFLAGs
 };
+#endif
+
 
 enum ASTNodeType
 {
@@ -52,7 +55,8 @@ enum ASTNodeType
     NODE_IDENT,
     NODE_CONSTINTEGER,
     NODE_CONSTSTRING,
-    NODE_VARINTEGER,
+    NODE_DECLVARINTEGER,
+    NODE_USEVARINTEGER,
     NODE_FORSTATEMENT,
     NODE_LOGIC,
     NODE_ARITH,
@@ -78,6 +82,7 @@ enum ASTNodeOperationType
 };
 
 
+/** Abstract Syntax Tree node with visitor support */
 struct ASTNode
 {
     ASTNode(ASTNodeType type) {m_type = type;}
