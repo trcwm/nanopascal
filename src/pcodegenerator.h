@@ -89,6 +89,7 @@ protected:
     bool                        m_targetIsBigEndian;    // set to true if target is big endian
     bool                        m_emitReserve;          // if true, reserved mem is emitted at the
                                                         // start of a new progblock
+    bool                        m_debug;
 };
 
 #endif

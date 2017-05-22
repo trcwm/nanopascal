@@ -106,7 +106,11 @@ struct ASTNode
     ASTNodeOperationType    m_optype;     // logic type
 };
 
+/** print the abstract syntax tree to the console using an indented format */
 void dumpASTree(const ASTNode *head, uint32_t level = 0);
+
+/** dump the abstract syntax tree to a file in Graphviz DOT format */
+void dumpASTreeToDot(const ASTNode *head, const char *filename);
 
 } // end namespace
 

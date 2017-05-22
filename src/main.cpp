@@ -21,6 +21,9 @@
 
 int main(int argc, char *argv[])
 {
+    bool dumpAST = false;
+    bool dumpTokens = false;
+
     printf("Micro Pascal version " __VERSION__"\n");
     printf("By Niels Moseley\n");
     printf("www.moseleyinstruments.com\n\n");
@@ -44,10 +47,13 @@ int main(int argc, char *argv[])
     tokenizer.process(reader, tokens);
     delete reader;
 
-    printf("Dumping tokens:\n");
-    for(uint32_t i=0; i<tokens.size(); i++)
+    if (dumpTokens)
     {
-        printf("%03d ID: %d -> %s\n", i, tokens[i].tokID, tokens[i].txt.c_str());
+        printf("Dumping tokens:\n");
+        for(uint32_t i=0; i<tokens.size(); i++)
+        {
+            printf("%03d ID: %d -> %s\n", i, tokens[i].tokID, tokens[i].txt.c_str());
+        }
     }
 
     printf("Parsing..\n");
@@ -59,7 +65,12 @@ int main(int argc, char *argv[])
         // ok!
         printf("Parsing successful\n");
 
-        AST::dumpASTree(context.m_astHead);
+        if (dumpAST)
+        {
+            AST::dumpASTree(context.m_astHead);
+        }
+
+        AST::dumpASTreeToDot(context.m_astHead, "program.dot");
 
         std::vector<uint8_t> code;
         PCodeGenerator generator(false);

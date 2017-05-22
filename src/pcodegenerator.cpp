@@ -12,7 +12,8 @@
 #include <sstream>
 #include "pcodegenerator.h"
 
-PCodeGenerator::PCodeGenerator(bool targetIsBigEndian) : m_targetIsBigEndian(targetIsBigEndian)
+PCodeGenerator::PCodeGenerator(bool targetIsBigEndian) : m_targetIsBigEndian(targetIsBigEndian),
+    m_debug(false)
 {
 }
 
@@ -66,7 +67,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     case AST::NODE_BLOCK:
         /* generate a stack frame because we have
            new local variables */
-        printf("Create stack frame\n");
+        if (m_debug) printf("Create stack frame\n");
         newScope = new SymbolTable::ScopedTable(m_curSymScope);
         m_curSymScope = newScope;
 
@@ -83,7 +84,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         {
             m_emitReserve = false;
             VMEmitInstruction(VM::VM_RESERVE, m_curSymScope->getLocalStorageSize());
-            printf("Local storage size: %d bytes\n", m_curSymScope->getLocalStorageSize());
+            if (m_debug) printf("Local storage size: %d bytes\n", m_curSymScope->getLocalStorageSize());
         }
         break;
     }
@@ -100,12 +101,12 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     case AST::NODE_BLOCK:
         /* generate a stack frame because we have
            new local variables */
-        printf("Clean up stack frame\n");
+        if (m_debug) printf("Clean up stack frame\n");
         m_curSymScope = m_curSymScope->getParent();
 
         break;
     case AST::NODE_LITERALINTEGER:
-        printf("LIT $%04X (%d)\n", node->m_integer, node->m_integer);
+        if (m_debug) printf("LIT $%04X (%d)\n", node->m_integer, node->m_integer);
         VMEmitInstruction(VM::VM_LIT, static_cast<uint16_t>(node->m_integer));
         break;
     case AST::NODE_LOGIC:
@@ -113,54 +114,54 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         switch(node->m_optype)
         {
         case AST::ANODE_COPY:
-            printf("COPY\n");
+            if (m_debug) printf("COPY\n");
             break;
         case AST::ANODE_MINUS:
             VMEmitInstruction(VM::VM_SUB);
-            printf("-\n");
+            if (m_debug) printf("-\n");
             break;
         case AST::ANODE_PLUS:
             VMEmitInstruction(VM::VM_ADD);
-            printf("+\n");
+            if (m_debug) printf("+\n");
             break;
         case AST::ANODE_MUL:
             VMEmitInstruction(VM::VM_MUL);
-            printf("*\n");
+            if (m_debug) printf("*\n");
             break;
         case AST::ANODE_DIV:
             VMEmitInstruction(VM::VM_DIV);
-            printf("/\n");
+            if (m_debug) printf("/\n");
             break;
         case AST::ANODE_UMINUS:
             VMEmitInstruction(VM::VM_NEG);
-            printf("U-\n");
+            if (m_debug) printf("U-\n");
             break;
         case AST::LNODE_EQUAL:
-            printf("==\n");
+            if (m_debug) printf("==\n");
             VMEmitInstruction(VM::VM_CEQ);
             break;
         case AST::LNODE_GREATER:
-            printf(">\n");
+            if (m_debug) printf(">\n");
             VMEmitInstruction(VM::VM_CG);
             break;
         case AST::LNODE_GREATEROREQUAL:
-            printf(">=\n");
+            if (m_debug) printf(">=\n");
             VMEmitInstruction(VM::VM_CGE);
             break;
         case AST::LNODE_LESS:
-            printf("<\n");
+            if (m_debug) printf("<\n");
             VMEmitInstruction(VM::VM_CL);
             break;
         case AST::LNODE_LESSOREQUAL:
-            printf("<=\n");
+            if (m_debug) printf("<=\n");
             VMEmitInstruction(VM::VM_CLE);
             break;
         case AST::LNODE_NOT:
-            printf("NOT\n");
+            if (m_debug) printf("NOT\n");
             VMEmitInstruction(VM::VM_NOT);
             break;
         case AST::LNODE_NOTEQUAL:
-            printf("!=\n");
+            if (m_debug) printf("!=\n");
             VMEmitInstruction(VM::VM_CNE);
             break;
         default:
@@ -179,7 +180,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         }
         else
         {
-            printf("STOREP %d (%s)\n", info->m_address, node->m_txt.c_str());
+            if (m_debug) printf("STOREP %d (%s)\n", info->m_address, node->m_txt.c_str());
             VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(info->m_address));
         }
         break;
@@ -194,20 +195,20 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         }
         else
         {
-            printf("LOAD %d (%s)\n", info->m_address, node->m_txt.c_str());
+            if (m_debug) printf("LOAD %d (%s)\n", info->m_address, node->m_txt.c_str());
             VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(info->m_address));
         }
         break;
     case AST::NODE_DECLVARINTEGER:
         m_emitReserve = true; // we have local variables!
         m_curSymScope->addSymbol(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
-        printf("DECLARE %s\n", node->m_txt.c_str());
+        if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
         break;
     case AST::NODE_DECLCONSTINTEGER:
         //m_emitReserve = true; // we have local variables!
         //m_curSymScope->addSymbol(node->m_txt, node->m_string);
-        //printf("DECLARE %s\n", node->m_txt.c_str());
-        printf("LIT $%04X (%d dec)\n", node->m_integer, node->m_integer);
+        //if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
+        if (m_debug) printf("LIT $%04X (%d dec)\n", node->m_integer, node->m_integer);
         VMEmitInstruction(VM::VM_LIT, static_cast<uint16_t>(node->m_integer));
         break;
     case AST::NODE_CONSTSTRING:
@@ -223,7 +224,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         }
         else
         {
-            printf("LIT $%04X (%d dec); const string %s\n", info->m_address, info->m_address, node->m_txt.c_str());
+            if (m_debug) printf("LIT $%04X (%d dec); const string %s\n", info->m_address, info->m_address, node->m_txt.c_str());
         }
         break;
         // nodes that do nothing..
@@ -234,7 +235,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     case AST::NODE_VARDECL:
         break;
     default:
-        printf("Unprocessed AST node: %d\n", node->m_type);
+        if (m_debug) printf("Unprocessed AST node: %d\n", node->m_type);
         break;
     }
 }
@@ -255,33 +256,33 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
         error(ss.str());
     }
 
-    printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());
+    if (m_debug) printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());
     VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(info->m_address));
 
     // now we insert a FOR loop label and check
     // if we haven't reached the end of the loop
-    printf("LOOPSTART:\n");
+    if (m_debug) printf("LOOPSTART:\n");
     uint16_t loopStartID = VMEmitLabel();
     VMSetLabelAddress(loopStartID, getCurrentEmitAddress());
 
-    printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());    // push loop variable onto stack
+    if (m_debug) printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());    // push loop variable onto stack
     VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(info->m_address));
 
     processNode(forNode->m_children[1]);            // loop terminating value/expression
 
-    // TODO: check if these are correct later
+
     if (forNode->m_integer < 0)
     {
-        printf(">=\n");
+        if (m_debug) printf(">=\n");
         VMEmitInstruction(VM::VM_CGE);
     }
     else
     {
-        printf("<=\n");
+        if (m_debug) printf("<=\n");
         VMEmitInstruction(VM::VM_CLE);
     }
 
-    printf("JNZ LOOPEXIT\n");
+    if (m_debug) printf("JNZ LOOPEXIT\n");
     uint16_t loopExitID = VMEmitLabel();
     VMEmitInstructionWithLabel(VM::VM_JZ, loopExitID); // address to be patched later
 
@@ -289,26 +290,26 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     processNode(forNode->m_children[2]);
 
     // update the loop variable
-    printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());
+    if (m_debug) printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());
     VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(info->m_address));
     if (forNode->m_integer < 0)
     {
-        printf("DEC\n");
+        if (m_debug) printf("DEC\n");
         VMEmitInstruction(VM::VM_DEC);
     }
     else
     {
-        printf("INC\n");
+        if (m_debug) printf("INC\n");
         VMEmitInstruction(VM::VM_INC);
     }
 
-    printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());   // store loop variable
+    if (m_debug) printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());   // store loop variable
     VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(info->m_address));
 
-    printf("JMP LOOPSTART\n");
+    if (m_debug) printf("JMP LOOPSTART\n");
     VMEmitInstructionWithLabel(VM::VM_JMP, loopStartID);
 
-    printf("LOOPEXIT:\n");
+    if (m_debug) printf("LOOPEXIT:\n");
     VMSetLabelAddress(loopExitID, getCurrentEmitAddress());
 }
 
