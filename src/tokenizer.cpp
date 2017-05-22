@@ -65,6 +65,12 @@ Tokenizer::Tokenizer()
     kw.txt = "WRITE";
     kw.ID  = TOK_WRITE;
     m_keywords.push_back(kw);
+    kw.txt = "PROCEDURE";
+    kw.ID  = TOK_PROCEDURE;
+    m_keywords.push_back(kw);
+    kw.txt = "FUNCTION";
+    kw.ID  = TOK_FUNCTION;
+    m_keywords.push_back(kw);
 }
 
 bool Tokenizer::isDigit(char c) const

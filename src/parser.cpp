@@ -30,7 +30,7 @@ void Parser::error(const ParseContext &s, const std::string &txt)
 {
     m_lastError = txt;
     m_lastErrorPos = s.tokPos;
-    std::cout << txt.c_str() << std::endl;
+    std::cout << "Error on line " << s.tokPos.line+1 << " :" << txt.c_str() << std::endl;
 }
 
 void Parser::error(const std::string &txt)
@@ -71,6 +71,8 @@ bool Parser::acceptProgram(ParseContext &context)
 {
     // production: block EOF
     context.m_astHead = 0;
+    context.m_symTable = new SymbolTable::ScopedTable(NULL);
+
     AST::ASTNode *node = acceptBlock(context);
     if (node == NULL)
         return false;
@@ -99,6 +101,12 @@ AST::ASTNode* Parser::acceptBlock(ParseContext &context)
             accepted = true;
         }
         else if ((node=acceptVarDecl(context)) !=0)
+        {
+            // add node to block
+            block->m_children.push_back(node);
+            accepted = true;
+        }
+        else if ((node=acceptProcDecl(context)) !=0)
         {
             // add node to block
             block->m_children.push_back(node);
@@ -190,6 +198,7 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
 
     // save identifier for later
     std::string ident = getToken(s,-2).txt;
+    s.m_symTable->addConstant(ident, SymbolTable::SymbolInfo::TYPE_UINT16);
 
     AST::ASTNode *constant = acceptConstant(s);
     if (constant == 0)
@@ -242,6 +251,10 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
             }
             constant->m_txt = ident;
             constdecl->m_children.push_back(constant);
+
+            //FIXME: for now we set the type to uint, but it
+            // can be something else.. need to figure out later!
+            s.m_symTable->addConstant(ident, SymbolTable::SymbolInfo::TYPE_UINT16);
         }
         else
         {
@@ -278,6 +291,9 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
     node->m_txt = getToken(s, -1).txt;  // store var name
     vardecl->m_children.push_back(node);
 
+    // add variable to the symbol table!
+    s.m_symTable->addVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+
     // match other variabels
     while(!match(s,TOK_COLON))
     {
@@ -291,9 +307,15 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
         if (match(s,TOK_IDENT))
         {
             // found another var name
+            // FIXME: we don't know what the type is
+            // until we have found the type identifier
+            // .. we will need to fix this later
+            // for now, we assume INT
             node = new AST::ASTNode(AST::NODE_DECLVARINTEGER);
             node->m_txt = getToken(s, -1).txt;  // store var name
             vardecl->m_children.push_back(node);
+
+            s.m_symTable->addVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         }
         else
         {
@@ -323,7 +345,101 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
     return vardecl;
 }
 
+AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
+{
+    ParseContext savestate = s;
+    if (!match(s,TOK_PROCEDURE))
+    {
+        return NULL;
+    }
 
+    if (!match(s,TOK_IDENT))
+    {
+        return NULL;
+    }
+
+
+    AST::ASTNode *procdecl = new AST::ASTNode(AST::NODE_PROCDECL);
+    procdecl->m_txt = getToken(s, -1).txt;  // store procedure name
+
+    // store the procedure information in the symbol table!
+    SymbolTable::SymbolInfo *procinfo = s.m_symTable->addProcedure(procdecl->m_txt);
+
+    // also create a new local symbol table
+    SymbolTable::ScopedTable *localSym = new SymbolTable::ScopedTable(s.m_symTable);
+
+    // check if we have at least one argument
+    if (match(s,TOK_LPAREN))
+    {
+        // yes, we have arguments!
+        // store them in an NODE_ARGDECL node
+        do
+        {
+            AST::ASTNode *argdecl = new AST::ASTNode(AST::NODE_ARGDECL);
+            if (!match(s, TOK_IDENT))
+            {
+                error(s, "Identifier expected");
+                s = savestate;
+                return NULL;
+            }
+            argdecl->m_txt = getToken(s, -1).txt;
+            procdecl->m_children.push_back(argdecl);
+
+            // add argument tot the procedure definition
+            // in the symbol table
+            SymbolTable::SymbolInfo arg;
+            arg.m_argument = true;
+            arg.m_name = argdecl->m_txt;
+            arg.m_type = SymbolTable::SymbolInfo::TYPE_UINT16;  // only INTs for now!
+            procinfo->m_args.push_back(arg);
+
+            // add argument to the local procedure scope
+            localSym->addArgVariable(argdecl->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+
+        } while(match(s, TOK_COMMA));
+
+        if (!match(s, TOK_RPAREN))
+        {
+            error(s, "Parentheses expected");
+            s = savestate;
+            return NULL;
+        }
+    }
+
+    if (!match(s, TOK_SEMICOL))
+    {
+        error(s, "Procedure definition must end with a semicolon");
+        s = savestate;
+        delete procdecl;
+        return NULL;
+    }
+
+    // change symbol table to intern procedure scope
+    SymbolTable::ScopedTable *prevScope = s.m_symTable;
+    s.m_symTable = localSym;
+    AST::ASTNode *block = acceptBlock(s);
+    if (block == NULL)
+    {
+        error(s,"Error in procedure body");
+        s = savestate;
+        delete procdecl;
+        return NULL;
+    }
+
+    if (!match(s, TOK_SEMICOL))
+    {
+        error(s,"Procedure block must end with a semicolon");
+        s = savestate;
+        delete procdecl;
+        return NULL;
+    }
+
+    procdecl->m_children.push_back(block);
+
+    // restore scope
+    s.m_symTable = prevScope;
+    return procdecl;
+}
 
 AST::ASTNode* Parser::acceptConstant(ParseContext &s)
 {
@@ -366,15 +482,22 @@ AST::ASTNode* Parser::acceptStatement(ParseContext &s)
         return statement;
     }
 
-    // is this an assigment?
-    statement = acceptAssignment(s);
+    // is it a WRITE function?
+    statement = acceptWriteFunction(s);
     if (statement != NULL)
     {
         return statement;
     }
 
-    // is it a WRITE function?
-    statement = acceptWriteFunction(s);
+    // is it a procedure call
+    statement = acceptProcedureCall(s);
+    if (statement != NULL)
+    {
+        return statement;
+    }
+
+    // is this an assigment?
+    statement = acceptAssignment(s);
     if (statement != NULL)
     {
         return statement;
@@ -838,30 +961,38 @@ AST::ASTNode* Parser::acceptTerm(ParseContext &s)
 
 AST::ASTNode* Parser::acceptFactor(ParseContext &s)
 {
-    // constant | IDENTIFIER | ( expression )
+    // constant | variable | procedure call | ( expression )
     //
     // for now, we'll assume an identifier is
     // always a variable.
     //
 
     ParseContext savestate = s;
-    AST::ASTNode *constNode = acceptConstant(s);
-    if (constNode != NULL)
+    AST::ASTNode *node = acceptConstant(s);
+    if (node != NULL)
     {
-        return constNode;
+        return node;
     }
 
     s = savestate;
 
-    if (match(s, TOK_IDENT))
+    node = acceptProcedureCall(s);
+    if (node != NULL)
     {
-        // TODO: lookup the variable
-        // assume it's a variable
-        AST::ASTNode *variable = new AST::ASTNode(AST::NODE_USEVARINTEGER);
-        variable->m_txt = getToken(s,-1).txt;
-        return variable;
+        return node;
     }
-    else if (match(s, TOK_LPAREN))
+
+    s = savestate;
+
+    node = acceptVariable(s);
+    if (node != NULL)
+    {
+        return node;
+    }
+
+    s = savestate;
+
+    if (match(s, TOK_LPAREN))
     {
         AST::ASTNode *expr = acceptExpression(s);
         if (expr == NULL)
@@ -884,6 +1015,67 @@ AST::ASTNode* Parser::acceptFactor(ParseContext &s)
         return NULL;
     }
 }
+
+AST::ASTNode* Parser::acceptVariable(ParseContext &s)
+{
+    ParseContext savestate = s;
+
+    if (match(s, TOK_IDENT))
+    {
+        std::string ident = getToken(s,-1).txt;
+        const SymbolTable::SymbolInfo *info = s.m_symTable->lookupSymbol(ident);
+        if (info == NULL)
+        {
+            s = savestate;
+            return NULL;
+        }
+        AST::ASTNode *node = 0;
+        switch(info->m_type)
+        {
+        case SymbolTable::SymbolInfo::TYPE_UINT16:
+            node = new AST::ASTNode(AST::NODE_USEVARINTEGER);
+            node->m_txt = ident;
+            return node;
+        case SymbolTable::SymbolInfo::TYPE_STRING:
+            error(s,"Strings not implemented!");
+            break;
+        default:
+            break;
+        }
+    }
+
+    s = savestate;
+    return NULL;
+}
+
+#if 0
+{
+    std::string ident = getToken(s,-1).txt;
+    const SymbolTable::SymbolInfo *info = s.m_symTable->lookupSymbol(ident);
+    if (info == NULL)
+    {
+        error(s, "Identifier is not a variable, function or procedure!");
+        s = savestate;
+        return NULL;
+    }
+    AST::ASTNode *node = 0;
+    switch(info->m_type)
+    {
+
+    case SymbolTable::SymbolInfo::TYPE_FUNCTION:
+        node = acceptFunctionCall(s, info);
+        break;
+    case SymbolTable::SymbolInfo::TYPE_PROCEDURE:
+        node = acceptProcedureCall(s, info);
+        break;
+    default:
+        error(s,"Internal compiler error (acceptFactor)");
+        break;
+    }
+    return node;
+}
+
+#endif
 
 AST::ASTNode* Parser::acceptLogic(ParseContext &s)
 {
@@ -934,3 +1126,130 @@ AST::ASTNode* Parser::acceptLogic(ParseContext &s)
     return NULL;
 }
 
+AST::ASTNode* Parser::acceptProcedureCall(ParseContext &s)
+{
+    ParseContext savestate = s;
+
+    if (!match(s, TOK_IDENT))
+    {
+        return NULL;
+    }
+
+    std::string ident = getToken(s,-1).txt;
+    const SymbolTable::SymbolInfo *info = s.m_symTable->lookupSymbol(ident);
+    if (info == NULL)
+    {
+        s = savestate;
+        return NULL;
+    }
+
+    // bail if it's not a procedure!
+    if (info->m_type != SymbolTable::SymbolInfo::TYPE_PROCEDURE)
+    {
+        s = savestate;
+        return NULL;
+    }
+
+    if (!match(s, TOK_LPAREN))
+    {
+        error(s,"Parentheses expected for procedure call");
+        return NULL;
+    }
+
+    AST::ASTNode *call = new AST::ASTNode(AST::NODE_CALL);
+    call->m_txt = ident;
+
+    size_t idx = 0;
+    while(idx < info->m_args.size())
+    {
+        AST::ASTNode *expr = acceptExpression(s);
+        if (expr == NULL)
+        {
+            error(s,"Not enough parameters in procedure call.");
+            return NULL;
+        }
+        idx++;
+        if (idx != info->m_args.size())
+        {
+            if (!match(s, TOK_COMMA))
+            {
+                error(s,"Not enough parameters in procedure call; comma expected.");
+                return NULL;
+            }
+        }
+        call->m_children.push_back(expr);
+    }
+
+    if (!match(s, TOK_RPAREN))
+    {
+        error(s,"Parentheses expected for procedure call");
+        delete call;
+        return NULL;
+    }
+
+    return call;
+}
+
+AST::ASTNode* Parser::acceptFunctionCall(ParseContext &s)
+{
+    ParseContext savestate = s;
+
+    if (!match(s, TOK_IDENT))
+    {
+        return NULL;
+    }
+
+    std::string ident = getToken(s,-1).txt;
+    const SymbolTable::SymbolInfo *info = s.m_symTable->lookupSymbol(ident);
+    if (info == NULL)
+    {
+        s = savestate;
+        return NULL;
+    }
+
+    // bail if it's not a procedure!
+    if (info->m_type != SymbolTable::SymbolInfo::TYPE_FUNCTION)
+    {
+        s = savestate;
+        return NULL;
+    }
+
+    if (!match(s, TOK_LPAREN))
+    {
+        error(s,"Parentheses expected for function call");
+        return NULL;
+    }
+
+    AST::ASTNode *call = new AST::ASTNode(AST::NODE_CALL);
+    call->m_txt = ident;
+
+    size_t idx = 0;
+    while(idx < info->m_args.size())
+    {
+        AST::ASTNode *expr = acceptExpression(s);
+        if (expr == NULL)
+        {
+            error(s,"Not enough parameters in procedure call.");
+            return NULL;
+        }
+        idx++;
+        if (idx != info->m_args.size())
+        {
+            if (!match(s, TOK_COMMA))
+            {
+                error(s,"Not enough parameters in procedure call; comma expected.");
+                return NULL;
+            }
+        }
+        call->m_children.push_back(expr);
+    }
+
+    if (!match(s, TOK_RPAREN))
+    {
+        error(s,"Parentheses expected for procedure call");
+        delete call;
+        return NULL;
+    }
+
+    return call;
+}

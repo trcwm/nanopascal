@@ -21,7 +21,7 @@
 
 int main(int argc, char *argv[])
 {
-    bool dumpAST = false;
+    bool dumpAST = true;
     bool dumpTokens = false;
 
     printf("Micro Pascal version " __VERSION__"\n");

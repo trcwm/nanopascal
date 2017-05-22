@@ -62,6 +62,8 @@
 #define TOK_THEN    112
 #define TOK_ELSE    113
 #define TOK_WRITE   114
+#define TOK_PROCEDURE 115
+#define TOK_FUNCTION 116
 
 #include <vector>
 #include <string>

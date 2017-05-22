@@ -22,20 +22,33 @@ namespace SymbolTable
 /** Information describing a symbol */
 struct SymbolInfo
 {
-    SymbolInfo() : m_type(TYPE_NONE), m_global(false), m_constant(false)
+    SymbolInfo() : m_type(TYPE_NONE),
+        m_global(false),
+        m_constant(false),
+        m_argument(false)
+    {
+    }
+
+    ~SymbolInfo()
     {
     }
 
     std::string m_name;
     std::string m_string;
-    enum SymType {TYPE_NONE=0, TYPE_UINT16, TYPE_CHAR, TYPE_STRING} m_type;
+    enum SymType {TYPE_NONE=0, TYPE_UINT16, TYPE_CHAR,
+                  TYPE_STRING, TYPE_PROCEDURE,
+                  TYPE_FUNCTION} m_type;
+
     bool    m_global;
     bool    m_constant;
+    bool    m_argument;
 
     /** absolute address of constant or string.
         relative address (to base pointer) of local
         variable */
     int32_t m_address;
+
+    std::vector<SymbolInfo> m_args;    // function or procedure arguments
 };
 
 /** a collection of symbols in one scope */
@@ -70,27 +83,52 @@ public:
         m_children.push_back(child);
     }
 
-    /** lookup a symbol. Returns NULL if not found */
-    const SymbolInfo* lookupSymbol(const std::string &name) const
+    /** lookup a symbol. Returns NULL if not found.
+        if the scope is not local, only
+        procedures, function and global
+        variables are returned.
+    */
+    const SymbolInfo* lookupSymbol(const std::string &name, bool scopeIsLocal = true) const
     {
         const size_t N = m_symbols.size();
         for(size_t i=0; i<N; i++)
         {
             if (m_symbols[i].m_name == name)
             {
-                return &(m_symbols[i]);
-            }
+                // check if we're searching the local scope
+                if (scopeIsLocal)
+                {
+                    // return everything
+                    return &(m_symbols[i]);
+                }
+                else
+                {
+                    // return only global vars
+                    // functions or  procedures
+                    switch(m_symbols[i].m_type)
+                    {
+                    case SymbolInfo::TYPE_FUNCTION:
+                    case SymbolInfo::TYPE_PROCEDURE:
+                        return &(m_symbols[i]);
+                    }
 
+                    if (m_symbols[i].m_global)
+                    {
+                        return &(m_symbols[i]);
+                    }
+                }
+            }
         }
         return NULL;
     }
 
-    /** add a symbol to the symbol table */
-    void addSymbol(const std::string &name, SymbolInfo::SymType stype, bool global = false)
+    /** add a variable to the symbol table */
+    void addConstant(const std::string &name, SymbolInfo::SymType stype, bool global = false)
     {
         SymbolInfo s;
         s.m_name = name;
         s.m_type = stype;
+        s.m_constant = true;
 
         // automatically calculate the local
         // address/offset if it's not a
@@ -116,8 +154,98 @@ public:
         m_symbols.push_back(s);
     }
 
+    /** add a function argument variable to the symbol table */
+    void addArgVariable(const std::string &name, SymbolInfo::SymType stype)
+    {
+        SymbolInfo s;
+        s.m_name = name;
+        s.m_type = stype;
+        s.m_global = false;
+        s.m_constant = false;
+        s.m_argument = true;
+
+        //FIXME: calculate stack address of
+        // argument
+#if 0
+        s.m_address = m_offset;
+        switch(stype)
+        {
+        case SymbolInfo::TYPE_CHAR:
+            m_offset++;
+            break;
+        case SymbolInfo::TYPE_UINT16:
+            m_offset+=2;
+            break;
+        }
+#endif
+        m_symbols.push_back(s);
+    }
+
+    /** add a variable to the symbol table */
+    void addVariable(const std::string &name, SymbolInfo::SymType stype, bool global = false)
+    {
+        SymbolInfo s;
+        s.m_name = name;
+        s.m_type = stype;
+        s.m_global = global;
+        s.m_constant = false;
+
+        // automatically calculate the local
+        // address/offset if it's not a
+        // global variable
+        if (!global)
+        {
+            s.m_address = m_offset;
+            switch(stype)
+            {
+            case SymbolInfo::TYPE_CHAR:
+                m_offset++;
+                break;
+            case SymbolInfo::TYPE_UINT16:
+                m_offset+=2;
+                break;
+            }
+        }
+        else
+        {
+            //TODO: handle global variables
+            // or constants
+        }
+        m_symbols.push_back(s);
+    }
+
+    /** add a procedure to the symbol table
+        and return a pointer to the info object
+        so we can add arguments */
+    SymbolInfo* addProcedure(const std::string &name)
+    {
+        SymbolInfo s;
+        s.m_name = name;
+        s.m_type = SymbolInfo::TYPE_PROCEDURE;
+        s.m_global = false;
+        s.m_constant = false;
+
+        m_symbols.push_back(s);
+        return &(m_symbols[m_symbols.size()-1]);
+    }
+
+    /** add a function to the symbol table
+        and return a pointer to the info object
+        so we can add arguments */
+    SymbolInfo* addFunction(const std::string &name)
+    {
+        SymbolInfo s;
+        s.m_name = name;
+        s.m_type = SymbolInfo::TYPE_FUNCTION;
+        s.m_global = false;
+        s.m_constant = false;
+
+        m_symbols.push_back(s);
+        return &(m_symbols[m_symbols.size()-1]);
+    }
+
     /** add a string constant symbol to the symbol table */
-    void addSymbol(const std::string &name, const std::string &txt, bool global = false)
+    void addConstStringSymbol(const std::string &name, const std::string &txt, bool global = false)
     {
         SymbolInfo s;
         s.m_name = name;

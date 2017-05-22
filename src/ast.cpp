@@ -57,6 +57,15 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case NODE_USEVARINTEGER:
         printf("LOAD VAR %s\n", node->m_txt.c_str());
         break;
+    case AST::NODE_PROCDECL:
+        printf("PROCDECL %s\n", node->m_txt.c_str());
+        break;
+    case AST::NODE_ARGDECL:
+        printf("ARG %s\n", node->m_txt.c_str());
+        break;
+    case AST::NODE_CALL:
+        printf("CALL %s\n", node->m_txt.c_str());
+        break;
     case NODE_FORSTATEMENT:
         printf("FOR %s (update=%d)\n", node->m_txt.c_str(), node->m_integer);
         break;
@@ -181,6 +190,15 @@ uint32_t writeNode(FILE *fout, const AST::ASTNode *node, uint32_t nodeID)
     case AST::NODE_DECLCONSTINTEGER:
         fprintf(fout, "%d", node->m_integer);
         break;
+    case AST::NODE_PROCDECL:
+        fprintf(fout, "PROC %s", node->m_txt.c_str());
+        break;
+    case AST::NODE_ARGDECL:
+        fprintf(fout, "ARG %s", node->m_txt.c_str());
+        break;
+    case AST::NODE_CALL:
+        fprintf(fout, "CALL %s", node->m_txt.c_str());
+        break;
     case AST::NODE_CONSTSTRING:
         fprintf(fout, "%s", node->m_txt.c_str());
         break;
@@ -191,7 +209,10 @@ uint32_t writeNode(FILE *fout, const AST::ASTNode *node, uint32_t nodeID)
         fprintf(fout, "VAR %s", node->m_txt.c_str());
         break;
     case AST::NODE_FORSTATEMENT:
-        fprintf(fout, "FOR %s ++", node->m_txt.c_str(), node->m_integer);
+        if (node->m_integer > 0)
+            fprintf(fout, "FOR %s ++", node->m_txt.c_str());
+        else
+            fprintf(fout, "FOR %s --", node->m_txt.c_str());
         break;
     case AST::NODE_IFSTATEMENT:
         if (node->m_children.size() == 3)

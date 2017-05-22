@@ -201,7 +201,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         break;
     case AST::NODE_DECLVARINTEGER:
         m_emitReserve = true; // we have local variables!
-        m_curSymScope->addSymbol(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+        m_curSymScope->addVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
         break;
     case AST::NODE_DECLCONSTINTEGER:

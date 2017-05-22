@@ -19,6 +19,7 @@
 
 #include "ast.h"
 #include "tokenizer.h"
+#include "symboltable.h"
 
 /** object that keeps track of the state */
 class ParseContext
@@ -27,23 +28,7 @@ public:
     size_t                tokIdx;
     Reader::position_info tokPos;
 
-#if 0
-    /** get variable by name, or -1 if not found */
-    int32_t getVariableByName(const std::string &name);
-
-    /** create a variable and return its index */
-    int32_t createVariable(const std::string &name, varInfo::type_t varType = varInfo::TYPE_VAR);
-
-    /** add a statement to the list of statement */
-    void addStatement(ASTNode* statement);
-
-    /** get (const) access to the statements */
-    const statements_t& getStatements() const
-    {
-        return m_statements;
-    }
-#endif
-
+    SymbolTable::ScopedTable*   m_symTable; // symbol table for current scope
     AST::ASTNode*               m_astHead;
 };
 
@@ -85,7 +70,7 @@ protected:
     */
     bool acceptProgram(ParseContext &context);
 
-    /** production: block -> ((constdecl)* | (vardecl)*) prog_block */
+    /** production: block -> (constdecl | vardecl | procdecl)* prog_block */
     AST::ASTNode* acceptBlock(ParseContext &s);
 
     /** production: constdecl -> CONST (IDENT = CONSTANT ;)+ */
@@ -97,10 +82,19 @@ protected:
     /** production: vardecl -> VAR IDENT (, IDENT)* : INTEGERKW ; */
     AST::ASTNode* acceptVarDecl(ParseContext &s);
 
+    /** production: procdecl -> PROCEDURE IDENT ( '(' IDENT ( , IDENT )* ')' | epsilon ) ; BLOCK */
+    AST::ASTNode* acceptProcDecl(ParseContext &s);
+
     /** production: prog_block -> BEGIN (statement)* END */
     AST::ASTNode* acceptProgBlock(ParseContext &s);
 
-    /* statement -> FOR statement | IF statement | progblock | assignment */
+    /** production: statement ->
+        FOR statement |
+        IF statement |
+        assignment |
+        write function |
+        progblock
+    */
     AST::ASTNode* acceptStatement(ParseContext &s);
 
     /** production: constant -> INTEGER | STRING */
@@ -133,8 +127,17 @@ protected:
     /** production: factor | factor ((MUL|DIV) factor)* */
     AST::ASTNode* Parser::acceptTerm(ParseContext &s);
 
-    /** production: INTEGER | IDENTIFIER | ( expression ) */
+    /** production: INTEGER | IDENTIFIER | function | ( expression ) */
     AST::ASTNode* Parser::acceptFactor(ParseContext &s);
+
+    /** production: */
+    AST::ASTNode* Parser::acceptFunctionCall(ParseContext &s);
+
+    /** production: */
+    AST::ASTNode* Parser::acceptProcedureCall(ParseContext &s);
+
+    /** production: IDENT (must be a variable) */
+    AST::ASTNode* acceptVariable(ParseContext &s);
 
     /** production: assignment -> IDENT = expr */
     AST::ASTNode* acceptAssignment(ParseContext &s);
