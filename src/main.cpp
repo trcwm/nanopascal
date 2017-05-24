@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         AST::dumpASTreeToDot(context.m_astHead, "program.dot");
 
         std::vector<uint8_t> code;
-        PCodeGenerator generator(false);
+        PCodeGenerator generator(false, true);
         generator.process(context.m_astHead, code);
 
         printf("Disassembled VM code:\n");

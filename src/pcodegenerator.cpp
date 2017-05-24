@@ -12,8 +12,8 @@
 #include <sstream>
 #include "pcodegenerator.h"
 
-PCodeGenerator::PCodeGenerator(bool targetIsBigEndian) : m_targetIsBigEndian(targetIsBigEndian),
-    m_debug(false)
+PCodeGenerator::PCodeGenerator(bool targetIsBigEndian, bool debug) : m_targetIsBigEndian(targetIsBigEndian),
+    m_debug(debug)
 {
 }
 
@@ -65,8 +65,9 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     switch(node->m_type)
     {
     case AST::NODE_BLOCK:
-        /* generate a stack frame because we have
-           new local variables */
+        /* generate a stack frame because we can have
+           new local variables
+        */
         if (m_debug) printf("Create stack frame\n");
         newScope = new SymbolTable::ScopedTable(m_curSymScope);
         m_curSymScope = newScope;
@@ -210,6 +211,15 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         //if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
         if (m_debug) printf("LIT $%04X (%d dec)\n", node->m_integer, node->m_integer);
         VMEmitInstruction(VM::VM_LIT, static_cast<uint16_t>(node->m_integer));
+        break;
+    case AST::NODE_ARGDECL:
+        m_curSymScope->addArgVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+        if (m_debug) printf("ARGDECL %s\n", node->m_txt.c_str());
+        break;
+    case AST::NODE_PROCDECL:
+        m_curSymScope->addProcedure(node->m_txt);
+        //FIXME: create new local scope?
+        if (m_debug) printf("PROCDECL %s\n", node->m_txt.c_str());
         break;
     case AST::NODE_CONSTSTRING:
         // push the address of the string onto the

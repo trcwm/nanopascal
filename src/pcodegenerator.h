@@ -20,7 +20,7 @@
 class PCodeGenerator
 {
 public:
-    PCodeGenerator(bool targetIsBigEndian);
+    PCodeGenerator(bool targetIsBigEndian, bool debug);
 
     bool process(const AST::ASTNode *head, std::vector<uint8_t> &code);
 
