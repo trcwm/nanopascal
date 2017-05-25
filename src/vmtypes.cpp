@@ -136,6 +136,10 @@ void VM::disassemble(const std::vector<uint8_t> &bytecode, bool bigEndian)
             printf("%04X WRITE\n", idx);
             idx++;
             break;
+        case VM_LOADARG:
+            printf("%04X LOADARG %04X\n", idx, getWord(bytecode[idx+1], bytecode[idx+2]));
+            idx+=3;
+            break;
         default:
             printf("%04X UNKNOWN (%d)\n", idx, bytecode[idx]);
             idx++;

@@ -44,6 +44,7 @@ namespace VM
         VM_INC      = 22,       // increment top of stack (-)
         VM_DEC      = 23,       // decrement top of stack (-)
         VM_WRITE    = 24,       // write the integer to the console
+        VM_LOADARG  = 25,       // load function/procedure argument
         VM_DONE     = 0xFF
     };
 

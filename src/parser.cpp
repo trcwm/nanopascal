@@ -198,7 +198,7 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
 
     // save identifier for later
     std::string ident = getToken(s,-2).txt;
-    s.m_symTable->addConstant(ident, SymbolTable::SymbolInfo::TYPE_UINT16);
+    s.m_symTable->addIdentifier(ident, SymbolTable::SymbolInfo::TYPE_UINT16, true);
 
     AST::ASTNode *constant = acceptConstant(s);
     if (constant == 0)
@@ -254,7 +254,7 @@ AST::ASTNode* Parser::acceptConstDecl(ParseContext &s)
 
             //FIXME: for now we set the type to uint, but it
             // can be something else.. need to figure out later!
-            s.m_symTable->addConstant(ident, SymbolTable::SymbolInfo::TYPE_UINT16);
+            s.m_symTable->addIdentifier(ident, SymbolTable::SymbolInfo::TYPE_UINT16, true);
         }
         else
         {
@@ -292,7 +292,7 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
     vardecl->m_children.push_back(node);
 
     // add variable to the symbol table!
-    s.m_symTable->addVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+    s.m_symTable->addIdentifier(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
 
     // match other variabels
     while(!match(s,TOK_COLON))
@@ -315,7 +315,7 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
             node->m_txt = getToken(s, -1).txt;  // store var name
             vardecl->m_children.push_back(node);
 
-            s.m_symTable->addVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+            s.m_symTable->addIdentifier(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         }
         else
         {
@@ -347,6 +347,8 @@ AST::ASTNode* Parser::acceptVarDecl(ParseContext &s)
 
 AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
 {
+    /** production: procdecl -> PROCEDURE IDENT ( '(' IDENT ( , IDENT )* ')' | epsilon ) ; BLOCK */
+
     ParseContext savestate = s;
     if (!match(s,TOK_PROCEDURE))
     {
@@ -388,13 +390,12 @@ AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
             // add argument tot the procedure definition
             // in the symbol table
             SymbolTable::SymbolInfo arg;
-            arg.m_argument = true;
             arg.m_name = argdecl->m_txt;
             arg.m_type = SymbolTable::SymbolInfo::TYPE_UINT16;  // only INTs for now!
             procinfo->m_args.push_back(arg);
 
             // add argument to the local procedure scope
-            localSym->addArgVariable(argdecl->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+            localSym->addIdentifier(argdecl->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
 
         } while(match(s, TOK_COMMA));
 
@@ -414,7 +415,7 @@ AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
         return NULL;
     }
 
-    // change symbol table to intern procedure scope
+    // change symbol table to internal procedure scope
     SymbolTable::ScopedTable *prevScope = s.m_symTable;
     s.m_symTable = localSym;
     AST::ASTNode *block = acceptBlock(s);

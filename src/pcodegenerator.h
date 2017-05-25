@@ -80,7 +80,6 @@ protected:
     // collected fixup data
     void doFixups();
 
-    SymbolTable::ScopedTable    m_syms;                 // global symbol table / head
     SymbolTable::ScopedTable    *m_curSymScope;         // pointer to symboltable of current scope
     std::vector<uint8_t>        *m_code;                // vector that will receive VM binary
     std::vector<fixup_t>        m_fixups;

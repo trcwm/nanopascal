@@ -22,7 +22,7 @@
 int main(int argc, char *argv[])
 {
     bool dumpAST = true;
-    bool dumpTokens = false;
+    bool dumpTokens = true;
 
     printf("Micro Pascal version " __VERSION__"\n");
     printf("By Niels Moseley\n");
