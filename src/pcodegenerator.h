@@ -17,6 +17,18 @@
 #include "vmtypes.h"
 #include "symboltable.h"
 
+class ScopeContext : public SymbolTable::ScopedTable
+{
+public:
+    ScopeContext(ScopeContext *parent = 0) : SymbolTable::ScopedTable(parent)
+    {
+        m_reserveEmitted = false;
+    }
+
+    bool            m_reserveEmitted;
+};
+
+
 class PCodeGenerator
 {
 public:
@@ -80,15 +92,14 @@ protected:
     // collected fixup data
     void doFixups();
 
-    SymbolTable::ScopedTable    *m_curSymScope;         // pointer to symboltable of current scope
+    ScopeContext                *m_curScopeContext;         // pointer to symboltable of current scope
     std::vector<uint8_t>        *m_code;                // vector that will receive VM binary
     std::vector<fixup_t>        m_fixups;
     std::vector<uint16_t>       m_labels;               // vector containing label addresses
 
     bool                        m_targetIsBigEndian;    // set to true if target is big endian
-    bool                        m_emitReserve;          // if true, reserved mem is emitted at the
-                                                        // start of a new progblock
     bool                        m_debug;
+    uint16_t                    m_entryPointLabel;      // label of program's entry point
 };
 
 #endif

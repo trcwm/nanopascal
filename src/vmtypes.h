@@ -37,14 +37,15 @@ namespace VM
         VM_CGE      = 15,       // compare greater or equal (unsigned) (stack: 2 off, 1 on)
         VM_CALL     = 16,       // calls a function
         VM_RET      = 17,       // return from function
-        VM_RESERVE  = 18,       // reserve x number of words for local storage
+        VM_RESERVE  = 18,       // reserve n number of bytes on return stack
         VM_LIT      = 19,       // load a 16-bit literal on the stack
         VM_NEG      = 20,       // negate the top of stack (-)
         VM_NOT      = 21,       // binary inverse of top of stack (-)
         VM_INC      = 22,       // increment top of stack (-)
         VM_DEC      = 23,       // decrement top of stack (-)
-        VM_WRITE    = 24,       // write the integer to the console
-        VM_LOADARG  = 25,       // load function/procedure argument
+        VM_WRITE    = 24,       // write the integer to the console (stack: 1 off)
+        VM_LOADARG  = 25,       // load function/procedure argument (stack: 1 on)
+        VM_LEAVE    = 26,       // clean up return stack ()
         VM_DONE     = 0xFF
     };
 

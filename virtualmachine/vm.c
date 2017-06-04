@@ -15,18 +15,47 @@ uint16_t getWordFromPMEM(vm_context_t *c, uint16_t pc)
     return *ptr;
 }
 
+/** get a local variable from rstack memory */
 uint16_t getLocal(vm_context_t *c, uint16_t offset)
 {
     uint16_t *ptr = c->rstack + c->bp - offset;
     return *ptr;
 }
 
+/** get a local variable from rstack memory
+
+    stack layout is as follows:
+
+    0 ARG 1
+    2 ARG 2
+    4 ARG 3
+    6 RETURN ADDRESS
+    8 PREV BP STORED HERE
+   10
+
+   -10 <-- new BP points here
+   -8  PREV BP
+   -6  RET ADDRESS
+   -4  ARG 3
+   -2  ARG 2
+    0  ARG 1
+
+   LOADARG #0 should load ARG 3
+   LOADARG #2 should load ARG 2 etc.
+*/
+
+uint16_t getArgument(vm_context_t *c, uint16_t offset)
+{
+    uint16_t *ptr = c->rstack + c->bp + offset + 6;
+    return *ptr;
+}
+
+/** store a local variable in rstack memory */
 void storeLocal(vm_context_t *c, uint16_t offset, uint16_t val)
 {
     uint16_t *ptr = c->rstack + c->bp - offset;
     ptr[0] = val;
 }
-
 
 void vm_init(vm_context_t *c)
 {
@@ -171,7 +200,7 @@ bool vm_execute(vm_context_t *c)
         break;
     case VM_RESERVE:
         /** this essentially creates a stack frame */
-        c->rstack[c->rsp--] = c->bp;  // save old BP!
+        c->dstack[c->dsp--] = c->bp;  // save old BP!
         c->bp = c->rsp;
 
         // note: rstack is uint16_t but
@@ -180,8 +209,27 @@ bool vm_execute(vm_context_t *c)
         // reserve one additional uint16_t to
         // be safe!
 
-        c->rsp -= getWordFromPMEM(c,c->pc+1) >> 1;
-        c->rsp--;
+        c->dsp -= getWordFromPMEM(c,c->pc+1) >> 1;
+        c->pc+=3;
+        break;
+    case VM_LEAVE:
+        /** destroy the stack frame */
+        c->dsp = c->bp;                 // recover prev stack pointer
+        c->bp = c->rstack[++c->rsp];    // recover prev bp
+        c->pc += 3;
+        break;
+    case VM_CALL:
+        /** call a function */
+        c->dstack[c->dsp--] = c->pc+3;
+        c->pc = getWordFromPMEM(c,c->pc+1); // call address
+        break;
+    case VM_RET:
+        /** return from function */
+        c->pc = c->dstack[++c->dsp];
+        break;
+    case VM_LOADARG:
+        c->dstack[c->dsp] = getArgument(c,getWordFromPMEM(c,c->pc+1) >> 1);
+        c->dsp--;
         c->pc+=3;
         break;
     case VM_LIT:
@@ -221,7 +269,7 @@ bool vm_execute(vm_context_t *c)
         c->pc++;
         break;
     default:
-        printf("Unknown instruction at address %04X -- aborting!\n", c->pc);
+        printf("Unknown instruction at address %04X with code %02X -- aborting!\n", c->pc, c->progmem[c->pc]);
         return false;
         break;
     }

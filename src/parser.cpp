@@ -367,36 +367,30 @@ AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
     // store the procedure information in the symbol table!
     SymbolTable::SymbolInfo *procinfo = s.m_symTable->addProcedure(procdecl->m_txt);
 
-    // also create a new local symbol table
-    SymbolTable::ScopedTable *localSym = new SymbolTable::ScopedTable(s.m_symTable);
-
     // check if we have at least one argument
     if (match(s,TOK_LPAREN))
     {
         // yes, we have arguments!
-        // store them in an NODE_ARGDECL node
         do
         {
-            AST::ASTNode *argdecl = new AST::ASTNode(AST::NODE_ARGDECL);
             if (!match(s, TOK_IDENT))
             {
                 error(s, "Identifier expected");
                 s = savestate;
                 return NULL;
             }
-            argdecl->m_txt = getToken(s, -1).txt;
-            procdecl->m_children.push_back(argdecl);
 
-            // add argument tot the procedure definition
-            // in the symbol table
+            // add arguments to the procedure
+            // FIXME: this is not needed, so remove later!
             SymbolTable::SymbolInfo arg;
-            arg.m_name = argdecl->m_txt;
+            arg.m_name = getToken(s, -1).txt;
             arg.m_type = SymbolTable::SymbolInfo::TYPE_UINT16;  // only INTs for now!
+            arg.m_address = 0;
+            arg.m_constant = false;
             procinfo->m_args.push_back(arg);
 
-            // add argument to the local procedure scope
-            localSym->addIdentifier(argdecl->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
-
+            // add argument name!
+            procdecl->m_argNames.push_back(arg.m_name);
         } while(match(s, TOK_COMMA));
 
         if (!match(s, TOK_RPAREN))
@@ -413,6 +407,14 @@ AST::ASTNode* Parser::acceptProcDecl(ParseContext &s)
         s = savestate;
         delete procdecl;
         return NULL;
+    }
+
+    // create a new local symbol table
+    SymbolTable::ScopedTable *localSym = new SymbolTable::ScopedTable(s.m_symTable);
+
+    for(size_t i=0; i<procinfo->m_args.size(); i++)
+    {
+        localSym->addArgument(procinfo->m_args[i].m_name, SymbolTable::SymbolInfo::TYPE_UINT16, 0);
     }
 
     // change symbol table to internal procedure scope
@@ -1034,7 +1036,7 @@ AST::ASTNode* Parser::acceptVariable(ParseContext &s)
         switch(info->m_type)
         {
         case SymbolTable::SymbolInfo::TYPE_UINT16:
-            node = new AST::ASTNode(AST::NODE_USEVARINTEGER);
+            node = new AST::ASTNode(AST::NODE_VARINTEGER);
             node->m_txt = ident;
             return node;
         case SymbolTable::SymbolInfo::TYPE_STRING:
@@ -1157,7 +1159,7 @@ AST::ASTNode* Parser::acceptProcedureCall(ParseContext &s)
         return NULL;
     }
 
-    AST::ASTNode *call = new AST::ASTNode(AST::NODE_CALL);
+    AST::ASTNode *call = new AST::ASTNode(AST::NODE_FUNCCALL);
     call->m_txt = ident;
 
     size_t idx = 0;
@@ -1221,7 +1223,7 @@ AST::ASTNode* Parser::acceptFunctionCall(ParseContext &s)
         return NULL;
     }
 
-    AST::ASTNode *call = new AST::ASTNode(AST::NODE_CALL);
+    AST::ASTNode *call = new AST::ASTNode(AST::NODE_FUNCCALL);
     call->m_txt = ident;
 
     size_t idx = 0;

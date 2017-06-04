@@ -38,7 +38,7 @@ namespace SymbolTable
 struct SymbolInfo
 {
     SymbolInfo() : m_type(TYPE_NONE),
-        m_constant(false), m_arg(false)
+        m_constant(false), m_arg(false), m_address(-1)
     {
     }
 
@@ -48,6 +48,17 @@ struct SymbolInfo
 
     std::string     m_name;     // name of variable, function or procedure
     std::string     m_string;   // string constant
+
+
+    /** For constants, this holds the absolute address of
+        the constant in the constant pool. For variables,
+        it holds the address relative to the stack frame.
+        For arguments, it holds the address relative to the
+        stack frame.
+        For functions and procedures it holds the call
+        address.
+        */
+    int32_t         m_address;
 
     enum SymType {TYPE_NONE=0,
                   TYPE_UINT16,
@@ -60,6 +71,8 @@ struct SymbolInfo
 
     SymType         m_rtype;            // return type for functions
 
+    /** if true, this datatype is a constant,
+        i.e. it's immutable. */
     bool    m_constant;                 // constant flag
 
     /** true if this symbol is a function argument identifier
@@ -96,7 +109,7 @@ class ScopedTable
 {
 public:
     ScopedTable(ScopedTable *parent = NULL)
-        : m_parent(parent)
+        : m_parent(parent), m_localStorageBytes(0)
     {
         if (parent != NULL)
         {
@@ -104,7 +117,7 @@ public:
         }
     }
 
-    ~ScopedTable()
+    virtual ~ScopedTable()
     {
         clear();
     }
@@ -135,6 +148,9 @@ public:
     */
     const SymbolInfo* lookupSymbol(const std::string &name, bool searchOnlyLocalScope = false) const
     {
+        // we're searching a new stack frame here,
+        // so reset the stack-frame-relative address
+        // to zero
         const size_t N = m_symbols.size();
         for(size_t i=0; i<N; i++)
         {
@@ -158,24 +174,36 @@ public:
         return NULL;
     }
 
-    /** add a variable or constant to the symbol table */
+    /** add a variable or constant to the symbol table and
+        reserve space for it in the local stack frame.
+    */
     void addIdentifier(const std::string &name, SymbolInfo::SymType stype, bool constant = false)
     {
         SymbolInfo s;
         s.m_name = name;
         s.m_type = stype;
         s.m_constant = constant;
+
+        // reserve space for the ident in the local stack frame
+        s.m_address = m_localStorageBytes;
+        m_localStorageBytes += s.getSymbolBytes();
         m_symbols.push_back(s);
     }
 
-    /** add a (local) function argument to the symbol table */
-    void addArgument(const std::string &name, SymbolInfo::SymType stype, bool constant = false)
+    /** add a (local) function argument to the symbol table.
+        these variables are not part of the local stack frame
+        but rather of the stack space of the caller.
+        Therefore, there is no need to increment the
+        local storage amount.
+    */
+    void addArgument(const std::string &name, SymbolInfo::SymType stype, uint32_t address)
     {
         SymbolInfo s;
         s.m_name = name;
         s.m_type = stype;
-        s.m_constant = constant;
+        s.m_constant = false;
         s.m_arg = true;
+        s.m_address = address;
         m_symbols.push_back(s);
     }
 
@@ -188,7 +216,7 @@ public:
         s.m_name = name;
         s.m_type = SymbolInfo::TYPE_PROCEDURE;
         s.m_constant = false;
-
+        s.m_address = 0;
         m_symbols.push_back(s);
         return &(m_symbols[m_symbols.size()-1]);
     }
@@ -196,18 +224,22 @@ public:
     /** add a function to the symbol table
         and return a pointer to the info object
         so we can add arguments */
-    SymbolInfo* addFunction(const std::string &name)
+    SymbolInfo* addFunction(const std::string &name, uint16_t labelID, SymbolInfo::SymType returnType)
     {
         SymbolInfo s;
         s.m_name = name;
         s.m_type = SymbolInfo::TYPE_FUNCTION;
         s.m_constant = false;
-
+        s.m_rtype = returnType;
+        s.m_address = labelID;
         m_symbols.push_back(s);
         return &(m_symbols[m_symbols.size()-1]);
     }
 
-    /** add a string constant symbol to the symbol table */
+    /** add a string constant symbol to the symbol table.
+        The string is stored in a seperate constant pool.
+        To access it, we must store the address of it.
+    */
     void addConstStringSymbol(const std::string &name, const std::string &txt)
     {
         SymbolInfo s;
@@ -216,6 +248,10 @@ public:
         s.m_string = txt;
         s.m_string += '\0'; // add NULL terminator
         s.m_constant = true;
+
+        //FIXME: allocate space in the constant pool and
+        // find the address!
+        s.m_address = 0;
         m_symbols.push_back(s);
     }
 
@@ -227,20 +263,16 @@ public:
 
     /** calculate the required space to allocate
         all the local variables */
-    size_t calculateLocalStorageBytes() const
+    size_t getLocalStorageBytes() const
     {
-        size_t num = 0;
-        for(size_t i=0; i<m_symbols.size(); i++)
-        {
-            if (!m_symbols[i].m_arg)
-            {
-                num += m_symbols[i].getSymbolBytes();
-            }
-        }
-        return num;
+        return m_localStorageBytes;
     }
 
 protected:
+    /** required stack space to store local variables
+        and constants */
+    uint32_t                  m_localStorageBytes;
+
     std::vector<SymbolInfo>   m_symbols;
     std::vector<ScopedTable*> m_children;
     ScopedTable *m_parent;

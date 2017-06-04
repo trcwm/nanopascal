@@ -39,9 +39,9 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case NODE_STATEMENT:
         printf("STATEMENT\n");
         break;
-    case NODE_EXPR:
-        printf("EXPR\n");
-        break;
+    //case NODE_EXPR:
+    //    printf("EXPR\n");
+    //    break;
     case NODE_IDENT:
         printf("IDENT %s\n", node->m_txt.c_str());
         break;
@@ -54,7 +54,7 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case NODE_DECLVARINTEGER:
         printf("DECLARE VAR %s\n", node->m_txt.c_str());
         break;
-    case NODE_USEVARINTEGER:
+    case NODE_VARINTEGER:
         printf("LOAD VAR %s\n", node->m_txt.c_str());
         break;
     case AST::NODE_PROCDECL:
@@ -63,7 +63,7 @@ void AST::dumpASTree(const ASTNode *node, uint32_t level)
     case AST::NODE_ARGDECL:
         printf("ARG %s\n", node->m_txt.c_str());
         break;
-    case AST::NODE_CALL:
+    case AST::NODE_FUNCCALL:
         printf("CALL %s\n", node->m_txt.c_str());
         break;
     case NODE_FORSTATEMENT:
@@ -181,9 +181,9 @@ uint32_t writeNode(FILE *fout, const AST::ASTNode *node, uint32_t nodeID)
     case AST::NODE_STATEMENT:
         fprintf(fout, "STATEMENT");
         break;
-    case AST::NODE_EXPR:
-        fprintf(fout, "EXPR");
-        break;
+    //case AST::NODE_EXPR:
+    //    fprintf(fout, "EXPR");
+    //    break;
     case AST::NODE_IDENT:
         fprintf(fout, "IDENT %s", node->m_txt.c_str());
         break;
@@ -196,7 +196,7 @@ uint32_t writeNode(FILE *fout, const AST::ASTNode *node, uint32_t nodeID)
     case AST::NODE_ARGDECL:
         fprintf(fout, "ARG %s", node->m_txt.c_str());
         break;
-    case AST::NODE_CALL:
+    case AST::NODE_FUNCCALL:
         fprintf(fout, "CALL %s", node->m_txt.c_str());
         break;
     case AST::NODE_CONSTSTRING:
@@ -205,7 +205,7 @@ uint32_t writeNode(FILE *fout, const AST::ASTNode *node, uint32_t nodeID)
     case AST::NODE_DECLVARINTEGER:
         fprintf(fout, "INT %s", node->m_txt.c_str());
         break;
-    case AST::NODE_USEVARINTEGER:
+    case AST::NODE_VARINTEGER:
         fprintf(fout, "VAR %s", node->m_txt.c_str());
         break;
     case AST::NODE_FORSTATEMENT:

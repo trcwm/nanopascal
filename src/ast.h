@@ -16,31 +16,13 @@
 #include <vector>
 #include <stdint.h>
 
+// forward declaration
+namespace SymbolTable {
+    class ScopedTable;
+}
+
 namespace AST
 {
-
-#if 0
-enum IdentType
-{
-    VI_UNDEFINED = 0,
-    VI_INTEGER   = 1,
-    VI_STRING    = 2,
-    VI_FUNCTION  = 3,
-    VI_PROCEDURE = 4
-};
-
-#define VIFLAG_CONSTANT 0x1
-#define VIFLAG_GLOBAL   0x2
-
-/** information concerning a identifiers */
-struct IdentInfo
-{
-    IdentType       m_type;
-    std::string     m_name;     // variable name
-    uint32_t        m_flags;    // VIFLAGs
-};
-#endif
-
 
 enum ASTNodeType
 {
@@ -48,25 +30,30 @@ enum ASTNodeType
     NODE_PROGRAM,
     NODE_BLOCK,
     NODE_PROGBLOCK,
+    /* DECLARATION STATEMENTS */
     NODE_CONSTDECL,
     NODE_VARDECL,
     NODE_PROCDECL,
     NODE_ARGDECL,
-    NODE_STATEMENT,
-    NODE_EXPR,
-    NODE_IDENT,
+    NODE_DECLVARINTEGER,
     NODE_DECLCONSTINTEGER,
     NODE_CONSTSTRING,
-    NODE_DECLVARINTEGER,
-    NODE_USEVARINTEGER,
+    /* IDENTIFIER TYPES */
+    NODE_STATEMENT,         // can probably be removed
+    NODE_EXPR,              // can probably be removed
+    NODE_IDENT,             // can probably be removed
+    NODE_VARINTEGER,
+    NODE_LITERALINTEGER,
+    /* COMPOUND STATEMENTS */
     NODE_FORSTATEMENT,
     NODE_IFSTATEMENT,
+    NODE_WRITE,
+    /* ARITH AND LOGIC OPERATORS */
     NODE_LOGIC,
     NODE_ARITH,
-    NODE_LITERALINTEGER,
     NODE_ASSIGN,
-    NODE_CALL,
-    NODE_WRITE
+    /* OTHER */
+    NODE_FUNCCALL
 };
 
 enum ASTNodeOperationType
@@ -90,7 +77,10 @@ enum ASTNodeOperationType
 /** Abstract Syntax Tree node with visitor support */
 struct ASTNode
 {
-    ASTNode(ASTNodeType type) {m_type = type;}
+    ASTNode(ASTNodeType type)
+    {
+        m_type = type;
+    }
 
     ~ASTNode()
     {
@@ -100,13 +90,15 @@ struct ASTNode
         }
     }
 
-    ASTNodeType             m_type;       // node type
-    std::vector<ASTNode*>   m_children;   // child nodes, from left to right
+    ASTNodeType             m_type;         // node type
+    std::vector<ASTNode*>   m_children;     // child nodes, from left to right
 
-    std::string             m_txt;        // ident name
-    std::string             m_string;     // string (const) value
-    int32_t                 m_integer;    // integer, for inc/dec
-    ASTNodeOperationType    m_optype;     // logic type
+    std::string             m_txt;          // ident name
+    std::string             m_string;       // string (const) value
+    int32_t                 m_integer;      // integer, for inc/dec
+    ASTNodeOperationType    m_optype;       // logic type
+
+    std::vector<std::string > m_argNames;   // function argument names
 };
 
 /** print the abstract syntax tree to the console using an indented format */

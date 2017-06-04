@@ -32,7 +32,12 @@ bool PCodeGenerator::process(const AST::ASTNode *head, std::vector<uint8_t> &cod
     {
         // VM code output array and setup the global symbol table.
         m_code = &code;
-        m_curSymScope = new SymbolTable::ScopedTable(0);
+        m_curScopeContext = new ScopeContext(0);
+
+        // start the program with a jump instruction to
+        // the entry point!
+        m_entryPointLabel = VMEmitLabel();
+        VMEmitInstructionWithLabel(VM::VM_JMP, m_entryPointLabel);
         processNode(head);
         doFixups();
     }
@@ -66,59 +71,77 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     }
 
     // do stuff upon entering the node
-    SymbolTable::ScopedTable *newScope;
+    ScopeContext *newScopeContext;
     SymbolTable::SymbolInfo  *procinfo;
     switch(node->m_type)
     {
     case AST::NODE_BLOCK:
-        /* generate a stack frame because we can have
-           new local variables
-        */
-
-        // reset the reserve flag, as we don't know if we
-        // have local variables!
-        m_emitReserve = false;
+        /* At the start of a new scope,
+           a BLOCK is entered. We reset the
+           emit_reserve state here */
+        m_curScopeContext->m_reserveEmitted = false;
         break;
     case AST::NODE_PROGBLOCK:
-        // for the first progblock after the
-        // var and const declarations
-        // we must reserve the space for
-        // the local vars!
-        if (m_emitReserve)
+        /* The block will be entered when all the
+           variable and constant declarations have been
+           processed. Thus, we have all the information
+           to emit the RESERVE VM instruction to
+           reserve the storage for the local variables
+        */
+        if (m_curScopeContext->m_reserveEmitted == false)
         {
-            m_emitReserve = false;
-            // loop through all the local variables/constants and save space for them
-            // note: function/procedure args already have space allocated for them
-            //       by the caller; no need to take them into account!
-            VMEmitInstruction(VM::VM_RESERVE, (uint16_t)m_curSymScope->calculateLocalStorageBytes());
+            // also check if we're at the top of the symbol scope
+            // hierarchy. If so, this is the program's entry point!
+            if (m_curScopeContext->getParent() == 0)
+            {
+                VMSetLabelAddress(m_entryPointLabel, getCurrentEmitAddress());
+            }
+
+            //Note: possible optimization is to not emit a
+            //      reserve instruction and accompanying
+            //      leave instruction when there are no
+            //      local variables!
+            VMEmitInstruction(VM::VM_RESERVE, (uint16_t)m_curScopeContext->getLocalStorageBytes());
             if (m_debug)
             {
-                printf("Local storage size: %d bytes\n", m_curSymScope->calculateLocalStorageBytes());
+                printf("Local storage size: %d bytes\n", m_curScopeContext->getLocalStorageBytes());
             }
+            m_curScopeContext->m_reserveEmitted = true;
         }
         break;
     case AST::NODE_PROCDECL:
-        // we must generate a new stack frame!
-        m_emitReserve = false;
-
-        // store the procedure information in the symbol table!
-        procinfo = m_curSymScope->addProcedure(node->m_txt);
-        newScope = new SymbolTable::ScopedTable(m_curSymScope);
-
-        // add all the arguments to the new scope
-        //for(size_t i=0; i<procinfo->m_args.size(); i++)
-        //{
-        //    newScope->addArgument(procinfo->m_args[i].m_name,
-        //                          procinfo->m_args[i].m_type,
-        //                          false);
-        //}
-        m_curSymScope = newScope;
+        // store the procedure information in the symbol table
+        // and create a new stack frame!
+        procinfo = m_curScopeContext->addProcedure(node->m_txt);
+        newScopeContext = new ScopeContext(m_curScopeContext);
+        m_curScopeContext = newScopeContext;
         if (m_debug) printf("PROCDECL %s\n", node->m_txt.c_str());
-        break;
 
+        // add a label to the procedure and set the
+        // label's address
+        procinfo->m_address = getCurrentEmitAddress();
+
+        // add the procedure arguments to the local scope!
+        // iterate in reverse order, as that's how they
+        // appear on the rstack, so we can set the
+        // offset w.r.t. the frame
+        {
+            uint32_t offset = 0;
+            auto iter = node->m_argNames.rbegin();
+            while(iter != node->m_argNames.rend())
+            {
+                m_curScopeContext->addArgument(*iter, SymbolTable::SymbolInfo::TYPE_UINT16, offset);
+                offset += 2;
+                iter++;
+            }
+        }
+        break;
     default:
         ;
     }
+
+    // all processing for entering AST nodes is done
+    // handle all the children; i.e. go down the tree.
 
     for(uint32_t i=0; i<node->m_children.size(); i++)
     {
@@ -131,11 +154,6 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
     switch(node->m_type)
     {
     case AST::NODE_BLOCK:
-        /* generate a stack frame because we have
-           new local variables */
-        //if (m_debug) printf("Clean up stack frame\n");
-        //m_curSymScope = m_curSymScope->getParent();
-
         break;
     case AST::NODE_LITERALINTEGER:
         if (m_debug) printf("LIT $%04X (%d)\n", node->m_integer, node->m_integer);
@@ -203,7 +221,7 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         break;
     case AST::NODE_ASSIGN:
         // lookup the variable offset
-        info = m_curSymScope->lookupSymbol(node->m_txt.c_str());
+        info = m_curScopeContext->lookupSymbol(node->m_txt.c_str());
         if (info == NULL)
         {
             std::stringstream ss;
@@ -212,14 +230,13 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         }
         else
         {
-            //FIXME: emit labels for the store command and do fixup later
-            if (m_debug) printf("STOREP %d (%s)\n", 0, node->m_txt.c_str());
+            if (m_debug) printf("STOREP %d (%s)\n", info->m_address, node->m_txt.c_str());
             VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(0));
         }
         break;
-    case AST::NODE_USEVARINTEGER:        
+    case AST::NODE_VARINTEGER:        
         // lookup the variable
-        info = m_curSymScope->lookupSymbol(node->m_txt.c_str());
+        info = m_curScopeContext->lookupSymbol(node->m_txt.c_str());
         if (info == NULL)
         {
             std::stringstream ss;
@@ -230,50 +247,72 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         {
             if (info->m_arg)
             {
-                // FIXME: emit labels and calculate offsets later
-                if (m_debug) printf("LOADARG %d (%s)\n", 0, node->m_txt.c_str());
-                VMEmitInstruction(VM::VM_LOADARG, static_cast<uint16_t>(0));
+                // FIXME: address is not correct!
+                if (m_debug) printf("LOADARG %d (%s)\n", info->m_address, node->m_txt.c_str());
+                VMEmitInstruction(VM::VM_LOADARG, static_cast<uint16_t>(info->m_address));
             }
             else
             {
-                // FIXME: emit labels and calculate offsets later
-                if (m_debug) printf("LOAD %d (%s)\n", 0, node->m_txt.c_str());
-                VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(0));
+                if (m_debug) printf("LOAD %d (%s)\n", info->m_address, node->m_txt.c_str());
+                VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(info->m_address));
             }
         }
         break;
     case AST::NODE_DECLVARINTEGER:
-        m_emitReserve = true; // we have local variables!
-        m_curSymScope->addIdentifier(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
+        m_curScopeContext->addIdentifier(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
         break;
     case AST::NODE_DECLCONSTINTEGER:
-        //m_emitReserve = true; // we have local variables!
-        //m_curSymScope->addSymbol(node->m_txt, node->m_string);
-        //if (m_debug) printf("DECLARE %s\n", node->m_txt.c_str());
         if (m_debug) printf("LIT $%04X (%d dec)\n", node->m_integer, node->m_integer);
         VMEmitInstruction(VM::VM_LIT, static_cast<uint16_t>(node->m_integer));
         break;
+#if 0
+    // OBSOLETE - arguments are now embedded in the PROCDECL node itself!
     case AST::NODE_ARGDECL:
-        m_curSymScope->addArgument(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16, false);
-        //m_curSymScope->addArgVariable(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16);
         if (m_debug) printf("ARGDECL %s\n", node->m_txt.c_str());
+        if (m_curScopeContext->m_curFunction == NULL)
+        {
+            std::stringstream ss;
+            ss << "Function argument " << node->m_txt << " found without function information!";
+            error(ss.str());
+        }
+        else
+        {
+            SymbolTable::SymbolInfo arginfo;
+            arginfo.m_name = node->m_txt;
+            arginfo.m_type = SymbolTable::SymbolInfo::TYPE_UINT16;
+            m_curScopeContext->m_curFunction->m_args.push_back(arginfo);
+            m_curScopeContext->addArgument(node->m_txt, SymbolTable::SymbolInfo::TYPE_UINT16, 0);
+        }
         break;
+#endif
     case AST::NODE_PROCDECL:
         // the procedure has already been added to the
         // scope above when entering the node
         // now we must destroy the local
         // procedure scope
-        tmpScope = m_curSymScope;
-        m_curSymScope = m_curSymScope->getParent();
+        VMEmitInstruction(VM::VM_LEAVE, static_cast<uint16_t>(m_curScopeContext->getLocalStorageBytes()));
+        if (m_debug)
+        {
+            printf("LEAVE %d\n", m_curScopeContext->getLocalStorageBytes());
+        }
+
+        tmpScope = m_curScopeContext;
+        m_curScopeContext = dynamic_cast<ScopeContext*>(m_curScopeContext->getParent());
         delete tmpScope;
-        if (m_debug) printf("PROCDECL(end) %s\n", node->m_txt.c_str());
+
+        VMEmitInstruction(VM::VM_RET, static_cast<uint16_t>(node->m_integer));
+        if (m_debug)
+        {
+            printf("RET\n\n");
+            printf("PROCDECL(end) %s\n", node->m_txt.c_str());
+        }
         break;
     case AST::NODE_CONSTSTRING:
         // push the address of the string onto the
         // stack.
         // lookup the variable offset
-        info = m_curSymScope->lookupSymbol(node->m_txt.c_str());
+        info = m_curScopeContext->lookupSymbol(node->m_txt.c_str());
         if (info == NULL)
         {
             std::stringstream ss;
@@ -283,12 +322,32 @@ void PCodeGenerator::processNode(const AST::ASTNode *node)
         else
         {
             //FIXME: emit labels for address
-            //if (m_debug) printf("LIT $%04X (%d dec); const string %s\n", info->m_address, info->m_address, node->m_txt.c_str());
+            // actually, we should emit the address of the string constant
             if (m_debug) printf("LIT $%04X (%d dec); const string %s\n", 0, 0, node->m_txt.c_str());
         }
         break;
-    case AST::NODE_CALL:
+    case AST::NODE_FUNCCALL:
+        info = m_curScopeContext->lookupSymbol(node->m_txt.c_str());
         if (m_debug) printf("CALL %s\n", node->m_txt.c_str());
+        if (info == NULL)
+        {
+            std::stringstream ss;
+            ss << "Symbol in call " << node->m_txt << " does not exist!";
+            error(ss.str());
+        }
+        else
+        {
+            if (info->m_address >= 0)
+            {
+                VMEmitInstruction(VM::VM_CALL, static_cast<uint16_t>(info->m_address));
+            }
+            else
+            {
+                std::stringstream ss;
+                ss << "Address of " << node->m_txt << " is not defined!";
+                error(ss.str());
+            }
+        }
         break;
         // nodes that do nothing..
     case AST::NODE_PROGBLOCK:
@@ -311,7 +370,7 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     // by evaluating the FOR loops first expression
 
     processNode(forNode->m_children[0]);    // initialization expression
-    info = m_curSymScope->lookupSymbol(forNode->m_txt.c_str());
+    info = m_curScopeContext->lookupSymbol(forNode->m_txt.c_str());
     if (info == NULL)
     {
         std::stringstream ss;
@@ -319,8 +378,9 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
         error(ss.str());
     }
 
-    //FIXME: add labels
-    if (m_debug) printf("STOREP %d (%s)\n", 0, forNode->m_txt.c_str());
+    // FIXME: check that the loop counter is an integer!
+
+    if (m_debug) printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());
     VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(0));
 
     // now we insert a FOR loop label and check
@@ -329,8 +389,7 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     uint16_t loopStartID = VMEmitLabel();
     VMSetLabelAddress(loopStartID, getCurrentEmitAddress());
 
-    // FIXME: labels
-    if (m_debug) printf("LOAD %d (%s)\n", 0, forNode->m_txt.c_str());    // push loop variable onto stack
+    if (m_debug) printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());    // push loop variable onto stack
     VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(0));
 
     processNode(forNode->m_children[1]);            // loop terminating value/expression
@@ -355,8 +414,7 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
     processNode(forNode->m_children[2]);
 
     // update the loop variable
-    //FIXME:
-    if (m_debug) printf("LOAD %d (%s)\n", 0, forNode->m_txt.c_str());
+    if (m_debug) printf("LOAD %d (%s)\n", info->m_address, forNode->m_txt.c_str());
     VMEmitInstruction(VM::VM_LOAD, static_cast<uint16_t>(0));
     if (forNode->m_integer < 0)
     {
@@ -369,8 +427,7 @@ void PCodeGenerator::handleForStatement(const AST::ASTNode *forNode)
         VMEmitInstruction(VM::VM_INC);
     }
 
-    //FIXME:
-    if (m_debug) printf("STOREP %d (%s)\n", 0, forNode->m_txt.c_str());   // store loop variable
+    if (m_debug) printf("STOREP %d (%s)\n", info->m_address, forNode->m_txt.c_str());   // store loop variable
     VMEmitInstruction(VM::VM_STOREP, static_cast<uint16_t>(0));
 
     if (m_debug) printf("JMP LOOPSTART\n");
@@ -428,6 +485,7 @@ void PCodeGenerator::handleWriteFunction(const AST::ASTNode *writeNode)
         // emit argument
         processNode(writeNode->m_children[i]);
         VMEmitInstruction(VM::VM_WRITE);
+        if (m_debug) printf("WRITE\n");
     }
 }
 

@@ -48,6 +48,8 @@ typedef enum
     VM_INC      = 22,       // increment top of stack (-)
     VM_DEC      = 23,       // decrement top of stack (-)
     VM_WRITE    = 24,       // write top of stack to console (stack: 1 off)
+    VM_LOADARG  = 25,       // load function/procedure argument (stack: 1 on)
+    VM_LEAVE    = 26,       // clean up return stack ()
     VM_DONE     = 0xFF
 } vm_command_t;
 
