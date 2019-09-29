@@ -3,7 +3,7 @@
   A virtual machine reference implementation
   for the Micro Pascal compiler
 
-  Copyright Niels A. Moseley 2017
+  Copyright Niels A. Moseley 2017 - 2019
   Moseley Instruments
   http://www.moseleyinstruments.com
 

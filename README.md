@@ -1,5 +1,5 @@
-# Micro-Pascal
-Pascal cross-compiler for small 8-bit systems.
+# Nano Pascal
+A Tiny Pascal compiler with a virtual machine target to bootstrap systems.
 
 # Introduction
 Micro Pascal cross-compiler was developed to be able to write programs for an HD6309-based 8-bit computer. At the time of writing, the only way to take advantage of the HD6309 capabilities was to write directly in assembly langauge.
