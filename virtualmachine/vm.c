@@ -3,276 +3,157 @@
 #include <stdio.h>
 #include "vm.h"
 
-/** return get a 16-bit word from a memory address.
-    note: This function behaves differently
-          depending on the CPU's endianness!
-          Most CPUs are little endian, but
-          the HD6309 is not!
-*/
-uint16_t getWordFromPMEM(vm_context_t *c, uint16_t pc)
-{
-    uint16_t *ptr = (uint16_t*)(c->progmem+pc);
-    return *ptr;
-}
-
-/** get a local variable from rstack memory */
-uint16_t getLocal(vm_context_t *c, uint16_t offset)
-{
-    uint16_t *ptr = c->rstack + c->bp - offset;
-    return *ptr;
-}
-
-/** get a local variable from rstack memory
-
-    stack layout is as follows:
-
-    0 ARG 1
-    2 ARG 2
-    4 ARG 3
-    6 RETURN ADDRESS
-    8 PREV BP STORED HERE
-   10
-
-   -10 <-- new BP points here
-   -8  PREV BP
-   -6  RET ADDRESS
-   -4  ARG 3
-   -2  ARG 2
-    0  ARG 1
-
-   LOADARG #0 should load ARG 3
-   LOADARG #2 should load ARG 2 etc.
-*/
-
-uint16_t getArgument(vm_context_t *c, uint16_t offset)
-{
-    uint16_t *ptr = c->rstack + c->bp + offset + 6;
-    return *ptr;
-}
-
-/** store a local variable in rstack memory */
-void storeLocal(vm_context_t *c, uint16_t offset, uint16_t val)
-{
-    uint16_t *ptr = c->rstack + c->bp - offset;
-    ptr[0] = val;
-}
-
 void vm_init(vm_context_t *c)
 {
-    c->pc  = 0;
-    c->dsp = DSTACKSIZE-1;
-    c->rsp = RSTACKSIZE-1;
-    c->bp  = 0;
+    c->dstack = malloc(16384 * sizeof(uint16_t));
+    c->mem    = malloc(16384 * sizeof(uint8_t));
+    c->t  = 0;
+    c->b  = 1;
+    c->pc = 0;
+    c->dstack[1] = 0;
+    c->dstack[2] = 0;
+    c->dstack[3] = 0;
 }
 
-
-void vm_load(vm_context_t *c, const uint8_t *bytecode, uint32_t bytes)
+void vm_free(vm_context_t *c)
 {
-    memcpy(c->progmem, bytecode, bytes);
-    vm_init(c);
+    free(c->mem);
+    free(c->dstack);
 }
 
-
-bool vm_loadfile(vm_context_t *c, const char *filename)
+uint16_t base(vm_context_t *c, uint16_t l)
 {
-    FILE *fin = fopen(filename, "rb");
-    if (fin == NULL)
+    uint16_t b1 = c->b;
+    while(l > 0)
     {
-        return false;
+        b1 = c->dstack[b1];
+        l--;
     }
-
-    vm_init(c);
-    while(!feof(fin))
-    {
-        c->progmem[c->pc++] = fgetc(fin);
-    }
-    fclose(fin);
-
-    printf("Loaded %d bytes\n", c->pc);
-
-    c->pc = 0; // program reset
-    return true;
+    return b1;
 }
 
 bool vm_execute(vm_context_t *c)
 {
-    switch(c->progmem[c->pc])
+    instruction_t *ins = c->mem + c->pc;
+    uint16_t level = 0;
+    uint16_t imm16 = ins->opt16;
+
+    c->pc++;
+    switch(ins->opcode & 0xF)
     {
-    case VM_ADD:
-        c->dsp++;
-        c->dstack[c->dsp+1] += c->dstack[c->dsp];
-        c->pc++;
+    case VM_LIT:    // load literal constant 0,n
+        c->t++;
+        c->dstack[c->t] = imm16;
+        c->pc+=2;
         break;
-    case VM_SUB:
-        c->dsp++;
-        c->dstack[c->dsp+1] -= c->dstack[c->dsp];
-        c->pc++;
-        break;
-    case VM_DIV:
-        c->dsp++;
-        c->dstack[c->dsp+1] /= c->dstack[c->dsp];
-        c->pc++;
-        break;
-    case VM_MUL:
-        c->dsp++;
-        c->dstack[c->dsp+1] *= c->dstack[c->dsp];
-        c->pc++;
-        break;
-    case VM_INC:
-        c->dstack[c->dsp+1]++;
-        c->pc++;
-        break;
-    case VM_DEC:
-        c->dstack[c->dsp+1]--;
-        c->pc++;
-        break;
-    case VM_DONE:
-        return false;
-        break;
-    case VM_NEG:
-        c->dstack[c->dsp+1] = (~c->dstack[c->dsp+1])+1;
-        c->pc++;
-        break;
-    case VM_NOT:
-        c->dstack[c->dsp+1] = ~c->dstack[c->dsp+1];
-        c->pc++;
-        break;
-    case VM_CL:
-        c->dsp++;
-        if ((c->dstack[c->dsp+1]) < (c->dstack[c->dsp]))
+    case VM_OPR:    // arithmetic or logical operation 0,n
+        switch(imm16)
         {
-            c->dstack[c->dsp+1] = 1;
+        case OPR_RET:   // return from procedure
+            c->t  = c->b-1;
+            c->pc = c->dstack[c->t+3];
+            c->b  = c->dstack[c->t+2];
+            break;
+        case OPR_NEG:
+            c->dstack[c->t] = -c->dstack[c->t];
+            break;
+        case OPR_ADD:
+            c->t--;
+            c->dstack[c->t] += c->dstack[c->t+1];
+            break;
+        case OPR_SUB:
+            c->t--;
+            c->dstack[c->t] -= c->dstack[c->t+1];
+            break;
+        case OPR_MUL:
+            c->t--;
+            c->dstack[c->t] *= c->dstack[c->t+1];
+            break;
+        case OPR_DIV:
+            c->t--;
+            c->dstack[c->t] /= c->dstack[c->t+1];
+            break;
+        case OPR_ODD:
+            c->dstack[c->t] = c->dstack[c->t] & 1;
+            break;
+        case OPR_EQ:
+            c->t--;
+            c->dstack[c->t] = (c->dstack[c->t] == c->dstack[c->t+1]) ? 1 : 0;
+            break;
+        case OPR_NEQ:
+            c->t--;
+            c->dstack[c->t] = (c->dstack[c->t] != c->dstack[c->t+1]) ? 1 : 0;
+            break;
+        case OPR_LESS:
+            c->t--;        
+            c->dstack[c->t] = (c->dstack[c->t] < c->dstack[c->t+1]) ? 1 : 0;
+            break;            
+        case OPR_LEQ:
+            c->t--;
+            c->dstack[c->t] = (c->dstack[c->t] <= c->dstack[c->t+1]) ? 1 : 0;
+            break;            
+        case OPR_GREATER:
+            c->t--;
+            c->dstack[c->t] = (c->dstack[c->t] > c->dstack[c->t+1]) ? 1 : 0;
+            break;            
+        case OPR_GEQ:
+            c->t--;
+            c->dstack[c->t] = (c->dstack[c->t] >= c->dstack[c->t+1]) ? 1 : 0;
+            break;            
+        case OPR_READ:
+            c->t++;
+            c->dstack[c->t] = readInt();
+            break;                                                         
+        case OPR_WRITE:
+            writeInt(c->dstack[c->t]);
+            c->t--;
+            break;            
+        default:
+            //error
+            break;
+        }
+        break;
+    case VM_LOD:    // load variable l,d
+        level = (ins->opcode >> 4); // level
+        c->t++;
+        c->dstack[c->t] = c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)];
+        c->pc+=2;
+        break;
+    case VM_STO:    // load indexed variable l,d
+        level = (ins->opcode >> 4); // level
+        c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)] = c->dstack[c->t];
+        c->t--;
+        c->pc+=2;
+        break;
+    case VM_CAL:    // call procedure or function v,a
+        level = (ins->opcode >> 4); // level
+        c->dstack[c->t+1] = base(c,level);
+        c->dstack[c->t+2] = c->b;
+        c->pc+=2;
+        c->dstack[c->t+3] = c->pc;
+        c->b=c->t+1;
+        c->pc=imm16;
+        break;
+    case VM_INT:    // increment stack pointer 0,n
+        c->t += (int16_t)imm16;
+        c->pc+=2;
+        break;
+    case VM_JMP:    // unconditional jump 0,a
+        c->pc = imm16;
+        break;
+    case VM_JPC:    // conditional jump 0,a
+        if (c->dstack[c->t] == 0)
+        {
+            c->pc = imm16;
         }
         else
         {
-            c->dstack[c->dsp+1] = 0;
+            c->pc+=2;
         }
-        c->pc++;
-        break;
-    case VM_CLE:
-        c->dsp++;
-        if ((c->dstack[c->dsp+1]) <= (c->dstack[c->dsp]))
-        {
-            c->dstack[c->dsp+1] = 1;
-        }
-        else
-        {
-            c->dstack[c->dsp+1] = 0;
-        }
-        c->pc++;
-        break;
-    case VM_CG:
-        c->dsp++;
-        if ((c->dstack[c->dsp+1]) > (c->dstack[c->dsp]))
-        {
-            c->dstack[c->dsp+1] = 1;
-        }
-        else
-        {
-            c->dstack[c->dsp+1] = 0;
-        }
-        c->pc++;
-        break;
-    case VM_CGE:
-        c->dsp++;
-        if ((c->dstack[c->dsp+1]) >= (c->dstack[c->dsp]))
-        {
-            c->dstack[c->dsp+1] = 1;
-        }
-        else
-        {
-            c->dstack[c->dsp+1] = 0;
-        }
-        c->pc++;
-        break;
-    case VM_JMP:
-        c->pc = getWordFromPMEM(c,c->pc+1);
-        break;
-    case VM_LOAD:
-        c->dstack[c->dsp] = getLocal(c,getWordFromPMEM(c,c->pc+1) >> 1);
-        c->dsp--;
-        c->pc+=3;
-        break;
-    case VM_STOREP:
-        c->dsp++;
-        storeLocal(c, getWordFromPMEM(c,c->pc+1) >> 1, c->dstack[c->dsp]);
-        c->pc+=3;
-        break;
-    case VM_RESERVE:
-        /** this essentially creates a stack frame */
-        c->dstack[c->dsp--] = c->bp;  // save old BP!
-        c->bp = c->rsp;
-
-        // note: rstack is uint16_t but
-        // reserve as bytes as size
-        // so, we divide by two and
-        // reserve one additional uint16_t to
-        // be safe!
-
-        c->dsp -= getWordFromPMEM(c,c->pc+1) >> 1;
-        c->pc+=3;
-        break;
-    case VM_LEAVE:
-        /** destroy the stack frame */
-        c->dsp = c->bp;                 // recover prev stack pointer
-        c->bp = c->rstack[++c->rsp];    // recover prev bp
-        c->pc += 3;
-        break;
-    case VM_CALL:
-        /** call a function */
-        c->dstack[c->dsp--] = c->pc+3;
-        c->pc = getWordFromPMEM(c,c->pc+1); // call address
-        break;
-    case VM_RET:
-        /** return from function */
-        c->pc = c->dstack[++c->dsp];
-        break;
-    case VM_LOADARG:
-        c->dstack[c->dsp] = getArgument(c,getWordFromPMEM(c,c->pc+1) >> 1);
-        c->dsp--;
-        c->pc+=3;
-        break;
-    case VM_LIT:
-        c->dstack[c->dsp] = getWordFromPMEM(c,c->pc+1);
-        c->dsp--;
-        c->pc+=3;
-        break;
-    case VM_JNZ:
-        c->dsp++;
-        if (c->dstack[c->dsp] == 0)
-        {
-            // false, no jump
-            c->pc += 3;
-        }
-        else
-        {
-            // true, jump
-            c->pc = getWordFromPMEM(c,c->pc+1);
-        }
-        break;
-    case VM_JZ:
-        c->dsp++;
-        if (c->dstack[c->dsp] != 0)
-        {
-            // false, no jump
-            c->pc += 3;
-        }
-        else
-        {
-            // true, jump
-            c->pc = getWordFromPMEM(c,c->pc+1);
-        }
-        break;
-    case VM_WRITE:
-        c->dsp++;
-        printf("%d\n", c->dstack[c->dsp]);
-        c->pc++;
         break;
     default:
-        printf("Unknown instruction at address %04X with code %02X -- aborting!\n", c->pc, c->progmem[c->pc]);
+        // error!
         return false;
-        break;
     }
-
     return true;
 }
