@@ -62,13 +62,15 @@ typedef enum
     OPR_WRITE   = 15
 } opr_t;
 
+#pragma pack(push,1)
 typedef struct
 {
     uint8_t     opcode; // lower nibble is opcode_t, upper is level for procedures/functions
     uint16_t    opt16;  // optional 16-bit payload (address or literal)
 } instruction_t;
+#pragma pack(pop)
 
-void vm_init(vm_context_t *c);
+void vm_init(vm_context_t *c, uint8_t *memptr);
 void vm_free(vm_context_t *c);
 
 void vm_load(vm_context_t *c, const uint8_t *bytecode, uint32_t bytes);

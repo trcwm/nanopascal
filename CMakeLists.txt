@@ -16,5 +16,12 @@ set(VMSRC
     ${PROJECT_SOURCE_DIR}/virtualmachine/vm.c
 )
 
+set(PASMSRC 
+    ${PROJECT_SOURCE_DIR}/passembler/main.c
+    ${PROJECT_SOURCE_DIR}/passembler/lex.c
+    ${PROJECT_SOURCE_DIR}/passembler/parse.c
+)
+
 add_executable(vm ${VMSRC})
-add_executable(nanopascal ${PASCALSRC})
+add_executable(passembler ${PASMSRC})
+#add_executable(nanopascal ${PASCALSRC})
