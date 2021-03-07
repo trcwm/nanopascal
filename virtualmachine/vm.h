@@ -27,6 +27,7 @@ typedef struct
     uint16_t pc;        /* program counter     (mem)    */
     uint16_t t;         /* stack pointer/index (dstack) */
     uint16_t b;         /* base pointer/index  (dstack) */
+    uint16_t inscount;
 } vm_context_t;
 
 
@@ -39,7 +40,8 @@ typedef enum
     VM_CAL      = 4,        // call procedure or function v,a
     VM_INT      = 5,        // increment stack pointer 0,n
     VM_JMP      = 6,        // unconditional jump 0,a
-    VM_JPC      = 7         // conditional jump 0,a
+    VM_JPC      = 7,        // conditional jump 0,a
+    VM_HALT     = 8
 } opcode_t;
 
 typedef enum
@@ -72,6 +74,7 @@ typedef struct
 
 void vm_init(vm_context_t *c, uint8_t *memptr);
 void vm_free(vm_context_t *c);
+void vm_push(vm_context_t *c, uint16_t v);
 
 void vm_load(vm_context_t *c, const uint8_t *bytecode, uint32_t bytes);
 bool vm_loadfile(vm_context_t *c, const char *filename);

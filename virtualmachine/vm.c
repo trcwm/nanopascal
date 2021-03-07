@@ -7,13 +7,14 @@
 void vm_init(vm_context_t *c, uint8_t *memptr)
 {
     c->dstack = malloc(16384 * sizeof(uint16_t));
-    c->mem    = memptr;    //malloc(16384 * sizeof(uint8_t));
+    c->mem    = memptr;
     c->t  = 0;
     c->b  = 1;
     c->pc = 0;
-    c->dstack[1] = 0;
-    c->dstack[2] = 0;
-    c->dstack[3] = 0;
+    c->dstack[1] = 0;   // DL
+    c->dstack[2] = 0;   // return address
+    c->dstack[3] = 0;   // SL    
+    c->inscount = 0;
 }
 
 void vm_free(vm_context_t *c)
@@ -57,6 +58,7 @@ bool vm_execute(vm_context_t *c)
     uint16_t imm16 = ins->opt16;
 
     c->pc++;
+    c->inscount++;
     switch(ins->opcode & 0xF)
     {
     case VM_LIT:    // load literal constant 0,n
@@ -134,11 +136,19 @@ bool vm_execute(vm_context_t *c)
         level = (ins->opcode >> 4); // level
         c->t++;
         c->dstack[c->t] = c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)];
+        //if (level != 0)
+        //{
+        //    printf("Loading from dstack address %d\n", (uint16_t)(base(c,level) + (int16_t)imm16));
+        //}
         break;
     case VM_STO:    // load indexed variable l,d
         level = (ins->opcode >> 4); // level
         c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)] = c->dstack[c->t];
         c->t--;
+        //if (level != 0)
+        //{
+        //    printf("Storing to dstack address %d\n", (uint16_t)(base(c,level) + (int16_t)imm16));
+        //}        
         break;
     case VM_CAL:    // call procedure or function v,a
         level = (ins->opcode >> 4); // level
@@ -160,6 +170,8 @@ bool vm_execute(vm_context_t *c)
             c->pc = imm16;
         }
         break;
+    case VM_HALT:
+        return false;
     default:
         // error!
         return false;

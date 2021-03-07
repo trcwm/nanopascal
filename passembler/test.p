@@ -1,5 +1,5 @@
-JMP 0 2
-JMP 0 2
+CAL 0 2
+JMP 0 2 ignored
 INT 0 5
 LOD 1 3
 STO 0 3
