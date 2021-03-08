@@ -1,6 +1,15 @@
+/*
+
+    PL/0 lexical analyser
+    N.A. Moseley 2021
+
+*/
+
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+
+//#define TOKDUMP
 
 typedef enum
 {
@@ -56,6 +65,7 @@ typedef struct
     int16_t toklen;     ///< length of current token    
     token_t token;      ///< current token type
     lexstate_t state;   ///< analyser state
+    int16_t linenum;    ///< current line number
 } lexer_context_t;
 
 /** initialise the lexical analyser */

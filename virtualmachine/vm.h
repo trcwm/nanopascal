@@ -40,8 +40,8 @@ typedef enum
     VM_CAL      = 4,        // call procedure or function v,a
     VM_INT      = 5,        // increment stack pointer 0,n
     VM_JMP      = 6,        // unconditional jump 0,a
-    VM_JPC      = 7,        // conditional jump 0,a
-    VM_HALT     = 8
+    VM_JPC      = 7,        // jump if false (tos = 0) 0,a
+    VM_HALT
 } opcode_t;
 
 typedef enum

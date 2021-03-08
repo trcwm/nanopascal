@@ -1,5 +1,13 @@
+/*
+
+    PL/0 lexical analyser
+    N.A. Moseley 2021
+
+*/
+
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include "lexer.h"
 
 // define PL/0 keywords
@@ -29,6 +37,7 @@ void lexer_init(lexer_context_t *context, char *source)
     context->toklen   = 0;
     context->token    = TOK_NONE;
     context->state    = LS_IDLE;
+    context->linenum  = 0;
 }
 
 bool isWhitespace(const char c)
@@ -51,6 +60,14 @@ bool isAlphaNum(const char c)
     return isAlpha(c) || isNumeric(c);
 }
 
+char lex_toupper(const char c)
+{
+    if ((c >= 'a') && (c <='z'))
+    {
+        return c - 'a' + 'A';
+    }
+}
+
 // add the current character to the token string
 void lexer_accept(lexer_context_t *context)
 {
@@ -69,6 +86,14 @@ void lexer_emit(lexer_context_t *context, token_t tok)
 {
     context->token = tok;
     context->state = LS_IDLE;
+    #ifdef TOKDUMP
+        printf("lex:    ");
+        for(int i=0; i<context->toklen; i++)
+        {
+            putchar(context->tokstart[i]);
+        }
+        printf(" (%d)\n", context->token);
+    #endif
 }
 
 // look-ahead the next character
@@ -83,11 +108,30 @@ void lexer_checkKeyword(lexer_context_t *context)
 {
     for(int kwindex=0; kwindex<NKEYWORDS; kwindex++)
     {
-        if (strncmp(context->tokstart, keywords[kwindex], context->toklen) == 0)
+        const char *kw = keywords[kwindex];
+        
+        if (kw[context->toklen] != 0)
         {
-            context->token = 100 + kwindex;
-            return;
+            // keyword and token are not the same length
+            // so skip this keyword
+            continue;
         }
+
+        bool fail = false;        
+        for(int cindex=0; cindex < context->toklen; cindex++)
+        {
+            if (kw[cindex] != lex_toupper(context->tokstart[cindex]))
+            {
+                fail = true;
+                break;
+            }
+        }
+        
+        if (fail)
+            continue;
+
+        context->token = 100 + kwindex;
+        return;
     }
 }
 
@@ -130,9 +174,14 @@ bool lexer_next(lexer_context_t *context)
             }
             else if (c == 10)
             {
+                context->linenum++;
+#ifdef SUPPORT_EOL
                 lexer_accept(context);
                 lexer_emit(context, TOK_EOL);
                 return true;
+#else
+                lexer_skip(context);
+#endif
             }
             else
             {

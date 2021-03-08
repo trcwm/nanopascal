@@ -7,7 +7,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "lexer.h"
+//#include "lexer.h"
+#include "parser.h"
 
 int main(int argc, char *argv[])
 {
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+#if 0
     lexer_context_t lex;
     lexer_init(&lex, src);
 
@@ -63,7 +65,18 @@ int main(int argc, char *argv[])
             break; 
         }
     }
-
+#else
+    if (!parse(src))
+    {
+        printf("Parse failed!\n");
+        return -1;
+    }
+    else
+    {
+        printf("Parse ok!\n");
+    }
+#endif
     free(src);
+    return 0;
     //lex_free(&lex);
 }
