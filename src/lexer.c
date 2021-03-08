@@ -1,5 +1,26 @@
 #include <stdbool.h>
+#include <string.h>
 #include "lexer.h"
+
+// define PL/0 keywords
+// the order must be the same
+// as the TOK_ definitions starting at value 100
+#define NKEYWORDS 12
+const char* keywords[NKEYWORDS] =
+{
+    "PROGRAM",
+    "BEGIN",
+    "END",
+    "VAR",
+    "WHILE",
+    "DO",
+    "PROCEDURE",
+    "CALL"
+    "CONST",
+    "IF",
+    "THEN",
+    "ODD"
+};
 
 void lexer_init(lexer_context_t *context, char *source)
 {
@@ -30,23 +51,47 @@ bool isAlphaNum(const char c)
     return isAlpha(c) || isNumeric(c);
 }
 
+// add the current character to the token string
 void lexer_accept(lexer_context_t *context)
 {
     context->toklen++;
 }
 
+// skip the current character and reset the token string
 void lexer_skip(lexer_context_t *context)
 {
     context->tokstart++;
     context->toklen = 0;
 }
 
+// set the token ID and return the lexer to the idle state
 void lexer_emit(lexer_context_t *context, token_t tok)
 {
     context->token = tok;
     context->state = LS_IDLE;
 }
 
+// look-ahead the next character
+char lexer_peekNextChar(lexer_context_t *context)
+{
+    return context->tokstart[context->toklen+1];
+}
+
+// check if the current token string is a keyword
+// and set the token accordingly
+void lexer_checkKeyword(lexer_context_t *context)
+{
+    for(int kwindex=0; kwindex<NKEYWORDS; kwindex++)
+    {
+        if (strncmp(context->tokstart, keywords[kwindex], context->toklen) == 0)
+        {
+            context->token = 100 + kwindex;
+            return;
+        }
+    }
+}
+
+// generate the next token
 bool lexer_next(lexer_context_t *context)
 {    
     // advance past the previously emitted token
@@ -94,6 +139,65 @@ bool lexer_next(lexer_context_t *context)
                 // some kind of operator?
                 switch(c)
                 {
+                case ';':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_SEMICOL);
+                    return true;
+                case '-':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_MINUS);
+                    return true;
+                case '+':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_PLUS);
+                    return true;
+                case '*':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_STAR);
+                    return true;
+                case '=':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_EQUAL);
+                    return true;                    
+                case '(':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_LPAREN);
+                case ')':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_RPAREN);                    
+                    return true; 
+                case '.':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_PERIOD);
+                    return true;                      
+                case ',':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_COMMA);
+                    return true;                    
+                case '!':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_EXCLAMATION);
+                    return true;
+                case '?':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_QUESTION);
+                    return true;                    
+                case ':':
+                    // check if this is an assign operator
+                    if (lexer_peekNextChar(context) == '=')
+                    {
+                        lexer_accept(context);
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_ASSIGN);
+                        return true;
+                    }
+                    else
+                    {
+                        // FIXME: is this an error?
+                        // can the ':' appear by itself in PL/0?
+                        return false;
+                    }
+                    break;
                 default:
                     // skip everything else
                     lexer_skip(context);
@@ -108,6 +212,7 @@ bool lexer_next(lexer_context_t *context)
             else
             {
                 lexer_emit(context, TOK_IDENT);
+                lexer_checkKeyword(context);
                 context->state = LS_IDLE;
                 return true;
             }

@@ -8,7 +8,31 @@ typedef enum
     TOK_EOF,
     TOK_IDENT,
     TOK_INTEGER,
-    TOK_EOL   
+    TOK_SEMICOL,
+    TOK_LPAREN,
+    TOK_RPAREN,
+    TOK_STAR,
+    TOK_PLUS,
+    TOK_MINUS,
+    TOK_EQUAL,
+    TOK_PERIOD,
+    TOK_COMMA,
+    TOK_EXCLAMATION,
+    TOK_QUESTION,
+    TOK_ASSIGN,             // :=    
+    TOK_EOL,
+    TOK_PROGRAM = 100,
+    TOK_BEGIN,
+    TOK_END,
+    TOK_VAR,
+    TOK_WHILE,
+    TOK_DO,
+    TOK_PROCEDURE,
+    TOK_CALL,
+    TOK_CONST,
+    TOK_IF,
+    TOK_THEN,
+    TOK_ODD
 } token_t;
 
 typedef enum
