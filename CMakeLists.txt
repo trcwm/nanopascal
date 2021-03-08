@@ -1,14 +1,8 @@
 project(nanopascal)
 
 set(PASCALSRC
-    ${PROJECT_SOURCE_DIR}/src/ast.cpp
-    ${PROJECT_SOURCE_DIR}/src/functiondefs.cpp
-    ${PROJECT_SOURCE_DIR}/src/parser.cpp
-    ${PROJECT_SOURCE_DIR}/src/pcodegenerator.cpp
-    ${PROJECT_SOURCE_DIR}/src/reader.cpp
-    ${PROJECT_SOURCE_DIR}/src/symboltable.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizer.cpp
-    ${PROJECT_SOURCE_DIR}/src/vmtypes.cpp
+    ${PROJECT_SOURCE_DIR}/src/lexer.c
+    ${PROJECT_SOURCE_DIR}/src/main.c
 )
 
 set(VMSRC 
@@ -24,4 +18,4 @@ set(PASMSRC
 
 add_executable(vm ${VMSRC})
 add_executable(passembler ${PASMSRC})
-#add_executable(nanopascal ${PASCALSRC})
+add_executable(nanopascal ${PASCALSRC})
