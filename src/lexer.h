@@ -21,6 +21,12 @@ typedef enum
     TOK_QUESTION,
     TOK_ASSIGN,             // :=    
     TOK_EOL,
+    TOK_LEQ,                // <=
+    TOK_GEQ,                // >=
+    TOK_LESS,               // <
+    TOK_GREATER,            // >
+    TOK_SLASH,              // /
+    TOK_HASH,               // #
     TOK_PROGRAM = 100,
     TOK_BEGIN,
     TOK_END,

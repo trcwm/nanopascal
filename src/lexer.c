@@ -173,6 +173,14 @@ bool lexer_next(lexer_context_t *context)
                 case ',':
                     lexer_accept(context);
                     lexer_emit(context, TOK_COMMA);
+                    return true;   
+                case '/':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_SLASH);
+                    return true;
+                case '#':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_HASH);
                     return true;                    
                 case '!':
                     lexer_accept(context);
@@ -196,6 +204,38 @@ bool lexer_next(lexer_context_t *context)
                         // FIXME: is this an error?
                         // can the ':' appear by itself in PL/0?
                         return false;
+                    }
+                    break;
+                case '<':
+                    // check if this < or <=
+                    if (lexer_peekNextChar(context) == '=')
+                    {
+                        lexer_accept(context);
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_LEQ);
+                        return true;
+                    }
+                    else
+                    {
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_LESS);
+                        return true;
+                    }
+                    break;
+                case '>':
+                    // check if this > or >=
+                    if (lexer_peekNextChar(context) == '=')
+                    {
+                        lexer_accept(context);
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_GEQ);
+                        return true;
+                    }
+                    else
+                    {
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_GREATER);
+                        return true;
                     }
                     break;
                 default:
