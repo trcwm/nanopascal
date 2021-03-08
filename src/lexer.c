@@ -15,7 +15,7 @@ const char* keywords[NKEYWORDS] =
     "WHILE",
     "DO",
     "PROCEDURE",
-    "CALL"
+    "CALL",
     "CONST",
     "IF",
     "THEN",
