@@ -187,7 +187,25 @@ bool parse_factor(parse_context_t *context)
 {
     if (match(context, TOK_IDENT))
     {
-        emit(context, VM_LOD, 0, 0, 0);
+        const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+        if (s == NULL)
+        {
+            parse_error("Cannot find symbol", context->lex.linenum);
+            return false;
+        }
+        if (s->type == TYPE_INT)
+        {
+            emit(context, VM_LOD, 0, context->proclevel - s->level, s->offset);
+        }
+        else if (s->type == TYPE_CONST)
+        {
+            //emit(context, VM_LIT, 0, context->proclevel - s->level, s->offset);
+            emit(context, VM_LIT, 0, 0, s->offset);
+        }
+        else
+        {
+            parse_error("Incompatible type", context->lex.linenum);
+        }
         return true;
     }
     else if (match(context, TOK_INTEGER))
@@ -247,7 +265,14 @@ bool parse_call(parse_context_t *context)
         return false;
     }
 
-    emit(context, VM_CAL, 0, 0, 0);
+    sym_t *s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+    if ((s==NULL) || (s->type != TYPE_PROCEDURE))
+    {
+        parse_error("Cannot find procedure\n", context->lex.linenum);
+        return false;
+    }
+
+    emit(context, VM_CAL, 0, 0, s->offset);
     return true;
 }
 
@@ -264,7 +289,20 @@ bool parse_assignment(parse_context_t *context, const char *identname, uint16_t 
         return false;
     }
 
-    emit(context, VM_STO, 0, 0, 0);
+    const sym_t* s = sym_lookup(&context->symtbl, identname, identlen);
+    if (s == NULL)
+    {
+        parse_error("Cannot find symbol", context->lex.linenum);
+        return false;
+    }
+    if (s->type == TYPE_INT)
+    {
+        emit(context, VM_STO, 0, context->proclevel - s->level, s->offset);
+    }
+    else
+    {
+        parse_error("Incompatible type", context->lex.linenum);
+    }
 
     return true;
 }
@@ -417,8 +455,16 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected IDENT\n", context->lex.linenum);
             return false;
         }        
+
+        sym_t *s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+        if ((s == NULL) || (s->type != TYPE_INT))
+        {
+            parse_error("Cannot find variable\n", context->lex.linenum);
+            return false;
+        }
+
         emit(context, VM_OPR,OPR_READ,0,0);  // read value onto stack
-        emit(context, VM_STO,0,0,0);         // store to argument
+        emit(context, VM_STO,0,s->level-context->proclevel, s->offset);
     }
     // ! IDENT
     else if (match(context, TOK_EXCLAMATION))
@@ -428,7 +474,15 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected IDENT\n", context->lex.linenum);
             return false;
         }
-        emit(context, VM_LOD,0,0,0);
+
+        sym_t *s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+        if ((s == NULL) || ((s->type != TYPE_INT) && (s->type != TYPE_CONST)))
+        {
+            parse_error("Cannot find variable\n", context->lex.linenum);
+            return false;
+        }
+
+        emit(context, VM_LOD,0,s->level-context->proclevel, s->offset);
         emit(context, VM_OPR,OPR_WRITE,0,0);        
     }
     // BEGIN .. END
@@ -622,7 +676,7 @@ bool parse_procedure(parse_context_t *context)
     emit_tokstr(procname, procnamelen);
     emit_txt("\n");
 
-    sym_add(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen);
+    sym_addproc(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen, context->emitaddress);
     sym_enter(&context->symtbl);
 
     if (context->proclevel == 15)

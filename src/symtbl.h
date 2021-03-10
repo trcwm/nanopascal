@@ -40,6 +40,7 @@ typedef struct
 
 bool sym_init(symtbl_t *tbl);
 bool sym_add(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namelen);
+bool sym_addproc(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namelen, uint16_t address);
 bool sym_enter(symtbl_t *tbl);
 bool sym_leave(symtbl_t *tbl);
 

@@ -55,6 +55,15 @@ bool sym_add(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namel
     return true;
 }
 
+bool sym_addproc(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namelen, uint16_t address)
+{
+    if (!sym_add(tbl, tp, name, namelen))
+        return false;
+
+    tbl->syms[tbl->Nsymbols-1].offset = address;
+    return true;
+}
+
 sym_t* sym_lookup(symtbl_t *tbl, const char *name, uint16_t namelen)
 {
     // backward search for the symbol
