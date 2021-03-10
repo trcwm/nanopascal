@@ -8,11 +8,13 @@
 #include <stdio.h>
 #include "parser.h"
 #include "lexer.h"
+#include "symtbl.h"
 #include "../virtualmachine/vm.h"
 
 typedef struct
 {
     lexer_context_t lex;
+    symtbl_t        symtbl;         ///< the symbol table
     char            *matchstart;    ///< pointer to string of last matched token
     int16_t         matchlen;       ///< string length of last matched token
     token_t         matchtok;       ///< matched token
@@ -311,11 +313,14 @@ bool parse_condition(parse_context_t *context)
 {
     if (match(context, TOK_ODD))
     {
-        if (!parse_expression)
+        if (!parse_expression(context))
         {
             parse_error("Expected a statement\n", context->lex.linenum);
             return false;
         }
+
+        emit(context, VM_OPR, OPR_ODD, 0, 0);
+
         return true;    // accept condition.
     }
 
@@ -519,6 +524,10 @@ bool parse_const(parse_context_t *context)
         parse_error("Expected IDENT\n", context->lex.linenum);
         return false;
     }
+
+    const char *ident    = context->matchstart;
+    uint16_t    identlen = context->matchlen;
+
     if (!match(context, TOK_EQUAL))
     {
         parse_error("Expected =", context->lex.linenum);
@@ -528,7 +537,9 @@ bool parse_const(parse_context_t *context)
     {
         parse_error("Exptected INTEGER\n", context->lex.linenum);
         return false;
-    }
+    }    
+
+    sym_add(&context->symtbl, TYPE_CONST, ident, identlen);
 
     while(match(context, TOK_COMMA))
     {
@@ -537,6 +548,10 @@ bool parse_const(parse_context_t *context)
             parse_error("Expected IDENT\n", context->lex.linenum);
             return false;
         }
+
+        ident    = context->matchstart;
+        identlen = context->matchlen;
+
         if (!match(context, TOK_EQUAL))
         {
             parse_error("Expected =", context->lex.linenum);
@@ -547,6 +562,8 @@ bool parse_const(parse_context_t *context)
             parse_error("Exptected INTEGER\n", context->lex.linenum);
             return false;
         }
+
+        sym_add(&context->symtbl, TYPE_CONST, ident, identlen);
     }
 
     if (!match(context, TOK_SEMICOL))
@@ -565,6 +582,10 @@ bool parse_var(parse_context_t *context)
         return false;
     }
 
+    const char *ident    = context->matchstart;
+    uint16_t    identlen = context->matchlen;
+    sym_add(&context->symtbl, TYPE_INT, ident, identlen);
+
     while(match(context, TOK_COMMA))
     {
         if (!match(context, TOK_IDENT))
@@ -572,6 +593,10 @@ bool parse_var(parse_context_t *context)
             parse_error("Expected IDENT\n", context->lex.linenum);
             return false;
         }
+
+        ident    = context->matchstart;
+        identlen = context->matchlen;
+        sym_add(&context->symtbl, TYPE_INT, ident, identlen);        
     }
 
     if (!match(context, TOK_SEMICOL))
@@ -596,6 +621,9 @@ bool parse_procedure(parse_context_t *context)
     emit_txt("; PROCEDURE ");
     emit_tokstr(procname, procnamelen);
     emit_txt("\n");
+
+    sym_add(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen);
+    sym_enter(&context->symtbl);
 
     if (context->proclevel == 15)
     {
@@ -623,9 +651,13 @@ bool parse_procedure(parse_context_t *context)
     }
 
     emit(context, VM_OPR, OPR_RET,0,0);
-    emit_txt("; ENDPROC\n\n");
-    context->proclevel--;
 
+    sym_dump(&context->symtbl);
+
+    emit_txt("; ENDPROC\n\n");
+
+    sym_leave(&context->symtbl);
+    context->proclevel--;
     return true;
 }
 
@@ -674,6 +706,7 @@ bool parse(char *src)
     context.proclevel   = 0;
 
     lexer_init(&context.lex, src);
+    sym_init(&context.symtbl);
 
     // get first token
     if (!nextToken(&context))
@@ -696,6 +729,8 @@ bool parse(char *src)
     }
 
     emit(&context,VM_HALT,0,0,0);
+
+    sym_dump(&context.symtbl);
 
     return true;
 }

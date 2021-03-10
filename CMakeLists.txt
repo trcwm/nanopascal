@@ -1,6 +1,7 @@
 project(nanopascal)
 
 set(PASCALSRC
+    ${PROJECT_SOURCE_DIR}/src/symtbl.c
     ${PROJECT_SOURCE_DIR}/src/parser.c
     ${PROJECT_SOURCE_DIR}/src/lexer.c
     ${PROJECT_SOURCE_DIR}/src/main.c
