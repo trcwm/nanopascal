@@ -68,12 +68,12 @@ int main(int argc, char *argv[])
 #else
     if (!parse(src))
     {
-        printf("Parse failed!\n");
+        fprintf(stderr, "Parse failed!\n");
         return -1;
     }
     else
     {
-        printf("Parse ok!\n");
+        fprintf(stderr, "Parse ok!\n");
     }
 #endif
     free(src);

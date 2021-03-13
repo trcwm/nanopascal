@@ -55,15 +55,6 @@ bool sym_add(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namel
     return true;
 }
 
-bool sym_addproc(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namelen, uint16_t address)
-{
-    if (!sym_add(tbl, tp, name, namelen))
-        return false;
-
-    tbl->syms[tbl->Nsymbols-1].offset = address;
-    return true;
-}
-
 sym_t* sym_lookup(symtbl_t *tbl, const char *name, uint16_t namelen)
 {
     // backward search for the symbol
@@ -150,9 +141,10 @@ bool sym_leave(symtbl_t *tbl)
 
 void sym_dump(symtbl_t *tbl)
 {
-    printf("Dumping symbol table\n");
+    printf("; Dumping symbol table\n");
     for(uint16_t idx=0; idx<tbl->Nsymbols; idx++)
     {
+        printf("; ");
         const sym_t *s = &(tbl->syms[idx]);
         for(uint8_t L=0; L<s->level; L++)
         {
@@ -172,18 +164,17 @@ void sym_dump(symtbl_t *tbl)
         switch(s->type)
         {
         case TYPE_CONST:
-            printf("CONST");
+            printf("CONST %d\n", s->offset);
             break;
         case TYPE_INT:
-            printf("INT  ");
+            printf("INT   %d\n", s->offset);
             break;
         case TYPE_PROCEDURE:
-            printf("PROC ");
+            printf("PROC  @L%d\n", s->offset);
             break;        
         default:
             printf("?????");
             break;                    
         }
-        printf(" %d %d\n", s->level, s->offset);
     }
 }

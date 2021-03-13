@@ -19,7 +19,7 @@ typedef struct
     int16_t         matchlen;       ///< string length of last matched token
     token_t         matchtok;       ///< matched token
 
-    uint16_t        emitaddress;    ///< address of the next emitted instruction
+    uint16_t        labelid;
     uint8_t         proclevel;      ///< nesting level of procedure
 } parse_context_t;
 
@@ -36,21 +36,39 @@ void emit_tokstr(const char *tokstr, uint16_t len)
     }
 }
 
-void emit_fixup(uint16_t addr, uint16_t patchaddr)
+void emit_label(uint16_t id)
 {
-    printf("FIX $%04X $%04X ; patch address field of instruction\n", addr, patchaddr);
+    printf("@L%d:\n", id);
+}
+
+bool emit_with_label(opcode_t op, uint16_t labelid)
+{
+    switch(op)
+    {
+    case VM_JMP:
+        printf("JMP @L%d\n",labelid);
+        return true;
+    case VM_JPC:
+        printf("JPC @L%d\n",labelid);
+        return true;
+    case VM_CAL:
+        printf("CAL @L%d\n",labelid);
+        return true;
+    default:
+        printf("Cannot emit instruction type with label\n");
+        break;
+    }
+    return false;
 }
 
 void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uint16_t imm16)
 {    
-    printf("$%04X: ", context->emitaddress);
     switch(op)
     {
     case VM_LIT:
         printf("LIT %d\n", imm16);
         break;
     case VM_OPR:    // alu op
-        //printf("  OPR ");
         switch(aluop)
         {
         case OPR_RET:
@@ -93,10 +111,10 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
             printf("EQU\n");
             break;            
         case OPR_READ:
-            printf("INP\n");
+            printf("READ\n");
             break;
         case OPR_WRITE:
-            printf("OUT\n");
+            printf("WRITE\n");
             break;
         default:
             printf("?? code:%d\n", aluop);
@@ -128,7 +146,6 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
         printf("??? code:%d\n", op);
         break;
     }
-    context->emitaddress++;
 }
 
 uint16_t asciiToInt(const char *ascii, uint16_t len)
@@ -272,7 +289,7 @@ bool parse_call(parse_context_t *context)
         return false;
     }
 
-    emit(context, VM_CAL, 0, 0, s->offset);
+    emit_with_label(VM_CAL, s->offset /* used as label id */);
     return true;
 }
 
@@ -516,8 +533,10 @@ bool parse_statement(parse_context_t *context)
 
         // jump over the THEN code if condition is false
         // the jump address needs a fixup
-        uint16_t fixaddr = context->emitaddress;
-        emit(context,VM_JPC,0,0,0);
+        uint16_t jpc_label = context->labelid++;
+        if (!emit_with_label(VM_JPC, jpc_label))
+            return false;
+
         emit_txt("; THEN\n");
         if (!match(context, TOK_THEN))
         {
@@ -529,7 +548,8 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected statement after THEN\n", context->lex.linenum);
             return false;                                    
         }
-        emit_fixup(fixaddr, context->emitaddress);
+
+        emit_label(jpc_label);
         emit_txt("; END IF\n");
     }
     // WHILE .. DO
@@ -539,8 +559,9 @@ bool parse_statement(parse_context_t *context)
         // so we can jump back to it at the end of 
         // the while block
 
-        uint16_t jmpaddr = context->emitaddress;
-        emit_txt("; WHILE JMP ADDR:\n");
+        uint16_t jmp_label = context->labelid++;
+        emit_txt("; WHILE\n");
+        emit_label(jmp_label);
         
         if (!parse_condition(context))
         {
@@ -548,10 +569,10 @@ bool parse_statement(parse_context_t *context)
             return false;            
         }
 
-        // forward jump which needs a fix-up address later.
-        uint16_t fixaddr = context->emitaddress;
-        emit(context, VM_JPC, 0,0,0);
-
+        // forward jump
+        uint16_t jpc_label = context->labelid++;
+        emit_with_label(VM_JPC, jpc_label);
+        
         if (!match(context, TOK_DO))
         {
             parse_error("Expected DO in WHILE statement\n", context->lex.linenum);
@@ -562,8 +583,8 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected statement after DO\n", context->lex.linenum);
             return false;                                    
         }
-        emit(context, VM_JMP,0,0, jmpaddr);
-        emit_fixup(fixaddr, context->emitaddress);
+        emit_with_label(VM_JMP, jmp_label);
+        emit_label(jpc_label);
         emit_txt("; END WHILE\n");
     }
 
@@ -676,7 +697,14 @@ bool parse_procedure(parse_context_t *context)
     emit_tokstr(procname, procnamelen);
     emit_txt("\n");
 
-    sym_addproc(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen, context->emitaddress);
+    if (!sym_add(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen))
+        return false;
+    
+    emit_label(context->labelid);
+
+    // add label id to the procedure symbol
+    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = context->labelid++;
+
     sym_enter(&context->symtbl);
 
     if (context->proclevel == 15)
@@ -741,7 +769,7 @@ bool parse_block(parse_context_t *context)
     if (context->proclevel == 0)
     {
         // here we have the top-level entry point
-        emit_txt("; ENTRY POINT:\n");
+        emit_txt("@ENTRY:\n");
     }
 
     // one statement
@@ -756,8 +784,8 @@ bool parse(char *src)
     parse_context_t context;
     context.matchlen    = 0;
     context.matchstart  = src;
-    context.emitaddress = 0;
     context.proclevel   = 0;
+    context.labelid     = 0;
 
     lexer_init(&context.lex, src);
     sym_init(&context.symtbl);
@@ -767,6 +795,8 @@ bool parse(char *src)
     {
         return false;
     }
+
+    emit_txt("JMP @ENTRY\n");
 
     // parse program
     if (!parse_block(&context))

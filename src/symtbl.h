@@ -22,7 +22,7 @@ typedef struct
 {
     symtype_t   type;       // symbol type
     uint8_t     level;      // nesting level
-    uint16_t    offset;     // offset into local stack    
+    uint16_t    offset;     // offset into local stack, or label id   
     char        *name;      // name of symbol    
     uint16_t    namelen;    // length of name
 } sym_t;

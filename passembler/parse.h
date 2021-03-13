@@ -1,11 +1,12 @@
-#pragma once
-
 /*
 
-    Parse
+    Parser for p-code assembler
+    N.A. Moseley (c) 2021
 
 */
 
+#pragma once
+#include <stdbool.h>
 #include "lex.h"
 
-void parse(const char *src);
+bool parse(const char *src);

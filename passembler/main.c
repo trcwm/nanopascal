@@ -40,30 +40,5 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-#if 0
-    lex_context_t lex;
-    lex_init(&lex, src);
-
-    while(lex.curtok != TOK_EOF)
-    {
-        lex_next(&lex);
-        switch(lex.curtok)
-        {
-        case TOK_EOL:
-            printf("TOK: EOL\n");
-            break;
-        case TOK_EOF:
-            printf("TOK: EOF\n");
-            break;
-        default:
-            printf("TOK: %s (%d)\n", lex.tokstr, lex.curtok);
-            break; 
-        }
-    }
-
-    free(src);
-    lex_free(&lex);
-#else
     parse(src);
-#endif
 }
