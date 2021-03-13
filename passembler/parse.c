@@ -9,12 +9,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "symtbl.h"
 #include "parse.h"
 
 typedef struct 
 {
     lex_context_t lex;
-    uint16_t emitaddress;   ///< address of next emitted instruction
+    symtbl_t      symtbl;
+    uint16_t      emitaddress;   ///< address of next emitted instruction
 } parse_context_t;
 
 void emit8(const unsigned char byte)
@@ -91,7 +93,7 @@ bool parse_instruction(parse_context_t *context)
         emit8(0);
         context->emitaddress++;
     }    
-    else if (optok == TOK_LIT)
+    else if ((optok == TOK_LIT) || (optok == TOK_INT))
     {
         emit8(opcode);
 
@@ -136,90 +138,105 @@ bool parse_instruction(parse_context_t *context)
             emit8(0x01);    //opr
             emit8(0x00);
             emit8(0x00);
+            context->emitaddress++;
         }
         else if (optok == TOK_NEG)
         {
             emit8(0x01);    //opr
             emit8(0x01);
-            emit8(0x00);            
+            emit8(0x00);    
+            context->emitaddress++;       
         }
         else if (optok == TOK_ADD)
         {
             emit8(0x01);    //opr
             emit8(0x02);
             emit8(0x00);
+            context->emitaddress++;
         }
         else if (optok == TOK_SUB)
         {
             emit8(0x01);    //opr
             emit8(0x03);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_MUL)
         {
             emit8(0x01);    //opr
             emit8(0x04);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_DIV)
         {
             emit8(0x01);    //opr
             emit8(0x05);
             emit8(0x00);
+            context->emitaddress++;
         }
         else if (optok == TOK_ODD)
         {
             emit8(0x01);    //opr
             emit8(0x06);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_EQU)
         {
             emit8(0x01);    //opr
             emit8(0x08);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_NEQ)
         {
             emit8(0x01);    //opr
             emit8(0x09);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_LES)
         {
             emit8(0x01);    //opr
             emit8(0x0A);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_LEQ)
         {
             emit8(0x01);    //opr
             emit8(0x0B);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_GRE)
         {
             emit8(0x01);    //opr
             emit8(0x0C);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_GEQ)
         {
             emit8(0x01);    //opr
             emit8(0x0D);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_READ)
         {
             emit8(0x01);    //opr
             emit8(0x0E);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         }
         else if (optok == TOK_WRITE)
         {
             emit8(0x01);    //opr
             emit8(0x0F);
-            emit8(0x00);            
+            emit8(0x00);           
+            context->emitaddress++; 
         } 
         else
         {
@@ -249,10 +266,15 @@ bool parseLine(parse_context_t *context)
         }
         else if (context->lex.curtok == TOK_LABEL)
         {
-            printf("label ");
-            for(uint16_t i=0; i<context->lex.toklen; i++)
-                putchar(context->lex.tokstr[i]);
-            printf(" at 0x%04X\n", context->emitaddress);
+            //printf("label ");
+            //for(uint16_t i=0; i<context->lex.toklen; i++)
+            //    putchar(context->lex.tokstr[i]);
+            //printf(" at 0x%04X\n", context->emitaddress);
+
+            //FIXME: put label in symbol table
+            sym_add(&context->symtbl, context->lex.tokstr, 
+                context->lex.toklen, context->emitaddress);
+                
             next(context);
         }
         else
@@ -262,6 +284,7 @@ bool parseLine(parse_context_t *context)
             return false;
         }
     }
+
     return true;
 }
 
@@ -278,7 +301,10 @@ bool parse(const char *src)
             return false;
     }
 
-    printf("Produced %d bytes\n", context.emitaddress);
+    printf("; Label table:\n");
+    sym_dump(&context.symtbl);
+
+    printf("; Produced %d bytes\n", context.emitaddress);
 
     return true;
 }

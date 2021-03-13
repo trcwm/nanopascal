@@ -770,6 +770,10 @@ bool parse_block(parse_context_t *context)
     {
         // here we have the top-level entry point
         emit_txt("@ENTRY:\n");
+
+        // make space for all the global variables on the stack
+        emit_txt("INT ");
+        printf("%d\n", context->symtbl.Nsymbols);
     }
 
     // one statement
