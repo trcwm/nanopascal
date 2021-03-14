@@ -813,7 +813,7 @@ bool parse_block(parse_context_t *context)
     if (local_varcount > 0)
     {
         emit_txt("INT ");
-        printf("%d\n", local_varcount);
+        printf("%d\n", local_varcount+3);   // 3 for local call pointers?
     }
 
     // one statement

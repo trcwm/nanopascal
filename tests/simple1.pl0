@@ -1,32 +1,23 @@
-CONST MAX = 100;
-VAR ARG, RET;
+Var local1;
 
-PROCEDURE ISPRIME;
-VAR I;
-BEGIN
-	RET := 1;
-	I := 2;
-	WHILE I < ARG DO
-	BEGIN
-		IF ARG / I * I = ARG THEN
-		BEGIN
-			RET := 0;
-			I := ARG
-		END;
-		I := I + 1
-	END
+PROCEDURE PROC1;
+VAR test;
+BEGIN	
+	! local1;
 END;
 
-PROCEDURE PRIMES;
+PROCEDURE PROC2;
 BEGIN
-	ARG := 2;
-	WHILE ARG < MAX DO
-	BEGIN
-		CALL ISPRIME;
-		IF RET = 1 THEN ! ARG;
-		ARG := ARG + 1
-	END
+	! local1;
 END;
 
-CALL PRIMES
-.
+BEGIN
+  local1 := 6;
+  CALL PROC1;
+  local1 := 10;
+  CALL PROC2;
+  local1 := 20;
+  CALL PROC1;
+  local1 := 10;
+  ! local1;
+END.

@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
     vm_context_t vm;
     vm_init(&vm, mem);
 
-#if 1
+#if 0
     vm_push(&vm, 0);
     vm_push(&vm, 0);
     vm_push(&vm, 0);
