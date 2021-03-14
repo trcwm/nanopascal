@@ -20,6 +20,7 @@ typedef struct
     token_t         matchtok;       ///< matched token
 
     uint16_t        labelid;
+    uint16_t        number;         ///< last number emitted from the lexer
     uint8_t         proclevel;      ///< nesting level of procedure
 } parse_context_t;
 
@@ -110,12 +111,6 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
         case OPR_EQ:
             printf("EQU\n");
             break;            
-        case OPR_READ:
-            printf("READ\n");
-            break;
-        case OPR_WRITE:
-            printf("WRITE\n");
-            break;
         default:
             printf("?? code:%d\n", aluop);
             break;
@@ -142,12 +137,22 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
     case VM_HALT:
         printf("HALT\n");
         break;
+    case VM_ININT:
+        printf("ININT\n");
+        break;
+    case VM_OUTINT:
+        printf("OUTINT\n");
+        break;        
+    case VM_OUTCHAR:
+        printf("OUTCHAR\n");
+        break;                
     default:
         printf("??? code:%d\n", op);
         break;
     }
 }
 
+#if 0
 uint16_t asciiToInt(const char *ascii, uint16_t len)
 {
     uint16_t v = 0;
@@ -164,6 +169,7 @@ uint16_t asciiToInt(const char *ascii, uint16_t len)
     }
     return v;
 }
+#endif
 
 // --======== LOCAL PARSER FUNCTIONS ========--
 
@@ -188,6 +194,7 @@ static bool match(parse_context_t *context, const token_t tok)
         context->matchstart = context->lex.tokstart;
         context->matchlen   = context->lex.toklen;
         context->matchtok   = context->lex.token;
+        context->number     = context->lex.number;
         nextToken(context);
         return true;
     }
@@ -227,7 +234,7 @@ bool parse_factor(parse_context_t *context)
     }
     else if (match(context, TOK_INTEGER))
     {
-        emit(context, VM_LIT, 0, 0, asciiToInt(context->matchstart, context->matchlen));
+        emit(context, VM_LIT, 0, 0, context->number);
         return true;
     }
     else if (match(context, TOK_LPAREN))
@@ -318,7 +325,7 @@ bool parse_assignment(parse_context_t *context, const char *identname, uint16_t 
     }
     else
     {
-        parse_error("Incompatible type", context->lex.linenum);
+        parse_error("Wrong type", context->lex.linenum);
     }
 
     return true;
@@ -480,27 +487,35 @@ bool parse_statement(parse_context_t *context)
             return false;
         }
 
-        emit(context, VM_OPR,OPR_READ,0,0);  // read value onto stack
-        emit(context, VM_STO,0,s->level-context->proclevel, s->offset);
+        emit(context, VM_ININT,0,0,0);  // read value onto stack
+        emit(context, VM_STO,0, context->proclevel - s->level, s->offset);        
     }
-    // ! IDENT
+    // ! expression
     else if (match(context, TOK_EXCLAMATION))
     {
-        if (!match(context, TOK_IDENT))
+        if (!parse_expression(context))
         {
-            parse_error("Expected IDENT\n", context->lex.linenum);
-            return false;
+            parse_error("! expression invalid\n", context->lex.linenum);
         }
 
-        sym_t *s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
-        if ((s == NULL) || ((s->type != TYPE_INT) && (s->type != TYPE_CONST)))
+        emit(context, VM_OUTINT,0,0,0);
+
+        while(match(context, TOK_COMMA))
         {
-            parse_error("Cannot find variable\n", context->lex.linenum);
-            return false;
+            if (!parse_expression(context))
+            {
+                parse_error("! expression invalid\n", context->lex.linenum);
+            }            
+
+            emit(context, VM_LIT, 0,0,32);
+            emit(context, VM_OUTCHAR,0,0,0);            
+            emit(context, VM_OUTINT,0,0,0);
         }
 
-        emit(context, VM_LOD,0,s->level-context->proclevel, s->offset);
-        emit(context, VM_OPR,OPR_WRITE,0,0);        
+        emit(context, VM_LIT, 0,0,10);
+        emit(context, VM_OUTCHAR,0,0,0);
+        emit(context, VM_LIT, 0,0,13);
+        emit(context, VM_OUTCHAR,0,0,0);
     }
     // BEGIN .. END
     else if (match(context, TOK_BEGIN))
@@ -548,8 +563,25 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected statement after THEN\n", context->lex.linenum);
             return false;                                    
         }
+        
+        // jump over the ELSE statements.
+        uint16_t jmp_label = context->labelid++;
+        if (!emit_with_label(VM_JMP, jmp_label))
+            return false;
 
         emit_label(jpc_label);
+
+        // optional else statement
+        if (match(context, TOK_ELSE))
+        {
+            emit_txt("; ELSE\n");
+            if (!parse_statement(context))
+            {
+                parse_error("Expected statement after ELSE\n", context->lex.linenum);
+                return false;                                    
+            }            
+        }
+        emit_label(jmp_label);
         emit_txt("; END IF\n");
     }
     // WHILE .. DO
@@ -608,13 +640,15 @@ bool parse_const(parse_context_t *context)
         parse_error("Expected =", context->lex.linenum);
         return false;
     }
+
     if (!match(context, TOK_INTEGER))
     {
-        parse_error("Exptected INTEGER\n", context->lex.linenum);
+        parse_error("Expected INTEGER\n", context->lex.linenum);
         return false;
     }    
 
     sym_add(&context->symtbl, TYPE_CONST, ident, identlen);
+    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = context->number;
 
     while(match(context, TOK_COMMA))
     {
@@ -771,9 +805,15 @@ bool parse_block(parse_context_t *context)
         // here we have the top-level entry point
         emit_txt("@ENTRY:\n");
 
-        // make space for all the global variables on the stack
+        
+    }
+
+    // create space for local variables    
+    uint16_t local_varcount = sym_numvariables(&context->symtbl);
+    if (local_varcount > 0)
+    {
         emit_txt("INT ");
-        printf("%d\n", context->symtbl.Nsymbols);
+        printf("%d\n", local_varcount);
     }
 
     // one statement

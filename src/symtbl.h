@@ -44,6 +44,9 @@ bool sym_addproc(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t n
 bool sym_enter(symtbl_t *tbl);
 bool sym_leave(symtbl_t *tbl);
 
+/** calculate the number of local variables */
+uint16_t sym_numvariables(symtbl_t *tbl);
+
 sym_t* sym_lookup(symtbl_t *tbl, const char *name, uint16_t namelen);
 
 void sym_dump(symtbl_t *tbl);

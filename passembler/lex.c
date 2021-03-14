@@ -13,7 +13,7 @@
 // define PL/0 keywords
 // the order must be the same
 // as the TOK_ definitions starting at value 100
-#define NKEYWORDS 24
+#define NKEYWORDS 25
 const char* keywords[NKEYWORDS] =
 {
     "LIT",
@@ -23,7 +23,10 @@ const char* keywords[NKEYWORDS] =
     "CAL",
     "INT",
     "JMP",
-    "JPC",
+    "JPC",    
+    "OUTCHAR",
+    "OUTINT",
+    "ININT",    
     "HALT",
     "RET",
     "NEG",
@@ -37,9 +40,7 @@ const char* keywords[NKEYWORDS] =
     "GRE",
     "GEQ",
     "EQU",
-    "NEQ",
-    "READ",
-    "WRITE"
+    "NEQ"
 };
 
 void lex_init(lex_context_t *context, const char *sourcePtr)

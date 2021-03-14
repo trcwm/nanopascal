@@ -1,0 +1,28 @@
+// comments until the end of the line 
+VAR L, R, X, T, C, V;
+
+BEGIN
+  L := 0;
+  R := 125;
+  X := 6359;
+  V := 0;  
+  C := 0;
+
+  WHILE C < 20 DO
+  BEGIN
+    T := (L+R)/2;
+    IF T*T <= X THEN
+      BEGIN
+        L := T;
+        V := T;
+      END
+    ELSE
+      BEGIN
+        R := T;
+        V := T;    
+      END;
+
+    C := C + 1;
+    ! L,R
+  END;
+END.

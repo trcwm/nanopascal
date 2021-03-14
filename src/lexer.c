@@ -13,7 +13,7 @@
 // define PL/0 keywords
 // the order must be the same
 // as the TOK_ definitions starting at value 100
-#define NKEYWORDS 12
+#define NKEYWORDS 13
 const char* keywords[NKEYWORDS] =
 {
     "PROGRAM",
@@ -27,7 +27,8 @@ const char* keywords[NKEYWORDS] =
     "CONST",
     "IF",
     "THEN",
-    "ODD"
+    "ODD",
+    "ELSE"
 };
 
 void lexer_init(lexer_context_t *context, char *source)
@@ -37,7 +38,7 @@ void lexer_init(lexer_context_t *context, char *source)
     context->toklen   = 0;
     context->token    = TOK_NONE;
     context->state    = LS_IDLE;
-    context->linenum  = 0;
+    context->linenum  = 1;
 }
 
 bool isWhitespace(const char c)
@@ -141,7 +142,7 @@ bool lexer_next(lexer_context_t *context)
     // advance past the previously emitted token
     context->tokstart += context->toklen;
     context->toklen    = 0;
-
+    context->number    = 0;
     while(1)
     {
         char c = context->tokstart[context->toklen];
@@ -169,6 +170,7 @@ bool lexer_next(lexer_context_t *context)
             }
             else if (isNumeric(c))
             {
+                context->number = c-'0';
                 context->state = LS_INTEGER;
                 lexer_accept(context);
             }
@@ -211,6 +213,7 @@ bool lexer_next(lexer_context_t *context)
                 case '(':
                     lexer_accept(context);
                     lexer_emit(context, TOK_LPAREN);
+                    return true;
                 case ')':
                     lexer_accept(context);
                     lexer_emit(context, TOK_RPAREN);                    
@@ -224,9 +227,21 @@ bool lexer_next(lexer_context_t *context)
                     lexer_emit(context, TOK_COMMA);
                     return true;   
                 case '/':
-                    lexer_accept(context);
-                    lexer_emit(context, TOK_SLASH);
-                    return true;
+                    // check if this is a line comment or a regular
+                    // single /
+                    if (lexer_peekNextChar(context) == '/')
+                    {
+                        lexer_skip(context);
+                        lexer_skip(context);
+                        context->state = LS_LINECOMMENT;
+                    }
+                    else
+                    {
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_SLASH);
+                        return true;
+                    }
+                    break;
                 case '#':
                     lexer_accept(context);
                     lexer_emit(context, TOK_HASH);
@@ -309,6 +324,11 @@ bool lexer_next(lexer_context_t *context)
         case LS_INTEGER:
             if (isNumeric(c))
             {
+                uint16_t orig = context->number;
+                context->number <<= 2;
+                context->number += orig;
+                context->number <<= 1;
+                context->number += c - '0';
                 lexer_accept(context);
             }
             else
@@ -316,6 +336,16 @@ bool lexer_next(lexer_context_t *context)
                 lexer_emit(context, TOK_INTEGER);
                 context->state = LS_IDLE;
                 return true;
+            }
+            break;
+        case LS_LINECOMMENT:
+            if (c == 10)
+            {
+                context->state = LS_IDLE;
+            }
+            else
+            {
+                lexer_skip(context);
             }
             break;
         default:

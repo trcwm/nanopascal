@@ -178,3 +178,23 @@ void sym_dump(symtbl_t *tbl)
         }
     }
 }
+
+uint16_t sym_numvariables(symtbl_t *tbl)
+{
+    uint16_t idx   = tbl->Nsymbols;
+    uint16_t count = 0;
+    while(idx > 0)
+    {
+        idx--;
+        if (tbl->syms[idx].level != tbl->level)
+        {
+            return count;
+        }
+        else
+        {
+            if (tbl->syms[idx].type == TYPE_INT)
+                count++;
+        }
+    }
+    return count;
+}

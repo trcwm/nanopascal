@@ -41,6 +41,9 @@ typedef enum
     VM_INT      = 5,        // increment stack pointer 0,n
     VM_JMP      = 6,        // unconditional jump 0,a
     VM_JPC      = 7,        // jump if false (tos = 0) 0,a
+    VM_OUTCHAR  = 8,
+    VM_OUTINT   = 9,
+    VM_ININT    = 10,
     VM_HALT
 } opcode_t;
 
@@ -59,9 +62,7 @@ typedef enum
     OPR_LESS    = 10,
     OPR_LEQ     = 11,
     OPR_GREATER = 12,
-    OPR_GEQ     = 13,
-    OPR_READ    = 14,
-    OPR_WRITE   = 15
+    OPR_GEQ     = 13
 } opr_t;
 
 #pragma pack(push,1)

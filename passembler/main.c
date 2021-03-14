@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[])
 {
-    printf("p-code assembler v0.1\n\n");
+    printf("; p-code assembler v0.1\n\n");
 
     if (argc < 2)
     {
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     size_t bytes = ftell(fin);
     rewind(fin);
 
-    printf("Loading %lu bytes\n", bytes);
+    printf("; Loading %lu bytes\n", bytes);
 
     char *src = malloc(bytes);
     if (fread(src, 1, bytes, fin) != bytes)

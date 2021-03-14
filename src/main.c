@@ -12,7 +12,8 @@
 
 int main(int argc, char *argv[])
 {
-    printf("PL/0 to p-code compiler\n\n");
+    printf("; PL/0 to p-code compiler\n");
+    printf("; Compiled on " __DATE__ "\n\n");
 
     if (argc < 2)
     {
@@ -31,7 +32,8 @@ int main(int argc, char *argv[])
     size_t bytes = ftell(fin);
     rewind(fin);
 
-    printf("Loading %lu bytes\n", bytes);
+    printf("; file = %s\n", argv[1]);
+    printf("; Loading %lu bytes\n\n", bytes);
 
     char *src = malloc(bytes);
     if (fread(src, 1, bytes, fin) != bytes)
@@ -40,32 +42,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-#if 0
-    lexer_context_t lex;
-    lexer_init(&lex, src);
-
-    while(lex.token != TOK_EOF)
-    {
-        lexer_next(&lex);
-        switch(lex.token)
-        {
-        case TOK_EOL:
-            printf("TOK: EOL\n");
-            break;
-        case TOK_EOF:
-            printf("TOK: EOF\n");
-            break;
-        default:
-            printf("TOK: ");
-            for(int i=0; i<lex.toklen; i++)
-            {
-                putchar(lex.tokstart[i]);
-            }
-            printf(" (%d)\n", lex.token);
-            break; 
-        }
-    }
-#else
     if (!parse(src))
     {
         fprintf(stderr, "Parse failed!\n");
@@ -75,8 +51,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "Parse ok!\n");
     }
-#endif
+
     free(src);
     return 0;
-    //lex_free(&lex);
 }

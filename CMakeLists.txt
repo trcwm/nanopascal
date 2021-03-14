@@ -16,6 +16,7 @@ set(PASMSRC
     ${PROJECT_SOURCE_DIR}/passembler/main.c
     ${PROJECT_SOURCE_DIR}/passembler/lex.c
     ${PROJECT_SOURCE_DIR}/passembler/symtbl.c
+    ${PROJECT_SOURCE_DIR}/passembler/fixuptbl.c
     ${PROJECT_SOURCE_DIR}/passembler/parse.c
 )
 

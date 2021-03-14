@@ -36,13 +36,21 @@ uint16_t base(vm_context_t *c, uint16_t l)
 int16_t readInt()
 {
     int v;
-    scanf(">%d\n", &v);
+    printf("> ");
+    scanf("%d", &v);
     return v;
 }
 
 void writeInt(int16_t v)
 {
-    printf("%d\n", v);
+    printf("%d", v);
+    fflush(stdout);
+}
+
+void writeChar(int16_t v)
+{
+    printf("%c", (char)v);
+    fflush(stdout);
 }
 
 void vm_push(vm_context_t *c, uint16_t v)
@@ -118,15 +126,7 @@ bool vm_execute(vm_context_t *c)
         case OPR_GEQ:
             c->t--;
             c->dstack[c->t] = (c->dstack[c->t] >= c->dstack[c->t+1]) ? 1 : 0;
-            break;            
-        case OPR_READ:
-            c->t++;
-            c->dstack[c->t] = readInt();
-            break;                                                         
-        case OPR_WRITE:
-            writeInt(c->dstack[c->t]);
-            c->t--;
-            break;            
+            break;
         default:
             //error
             break;
@@ -169,7 +169,20 @@ bool vm_execute(vm_context_t *c)
         {
             c->pc = imm16;
         }
+        c->t--;
         break;
+    case VM_ININT:
+        c->t++;
+        c->dstack[c->t] = readInt();
+        break;                                                         
+    case VM_OUTINT:
+        writeInt(c->dstack[c->t]);
+        c->t--;
+        break;    
+    case VM_OUTCHAR:
+        writeChar(c->dstack[c->t]);
+        c->t--;
+        break;                            
     case VM_HALT:
         return false;
     default:

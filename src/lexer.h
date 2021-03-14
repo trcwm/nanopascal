@@ -47,14 +47,16 @@ typedef enum
     TOK_CONST,
     TOK_IF,
     TOK_THEN,
-    TOK_ODD
+    TOK_ODD,
+    TOK_ELSE
 } token_t;
 
 typedef enum
 {
     LS_IDLE = 0,
     LS_INTEGER,
-    LS_IDENT
+    LS_IDENT,
+    LS_LINECOMMENT
 } lexstate_t;
 
 /** lexical analyser context data */
@@ -62,10 +64,11 @@ typedef struct
 {
     char    *src;       ///< pointer to the source code
     char    *tokstart;  ///< pointer to start of current token string
-    int16_t toklen;     ///< length of current token    
+    int16_t toklen;     ///< length of current token
     token_t token;      ///< current token type
     lexstate_t state;   ///< analyser state
     int16_t linenum;    ///< current line number
+    uint16_t number;    ///< value of integer literal
 } lexer_context_t;
 
 /** initialise the lexical analyser */
