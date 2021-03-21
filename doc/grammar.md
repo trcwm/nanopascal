@@ -17,7 +17,10 @@ statement = [ ident ":=" expression | "call" ident
 condition = "odd" expression |
             expression ("="|"#"|"<"|"<="|">"|">=") expression .
 
-expression = [ "+"|"-"] term { ("+"|"-") term}.
+expression = [ "+"|"-"] term { ("+"|"-") term}
+                | "shr" expression
+                | "shl" expression
+                | "sar" expression.
 
 term = factor {("*"|"/") factor}.
 

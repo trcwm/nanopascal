@@ -150,7 +150,16 @@ bool vm_execute(vm_context_t *c)
         case OPR_ININT:
             c->t++;
             c->dstack[c->t] = readInt();
-            break;            
+            break; 
+        case OPR_SHR:
+            c->dstack[c->t] = ((uint16_t)c->dstack[c->t]) >> 1;
+            break;
+        case OPR_SAR:
+            c->dstack[c->t] >>= 1;
+            break;
+        case OPR_SHL:
+            c->dstack[c->t] <<= 1;
+            break;
         default:
             //error
             break;

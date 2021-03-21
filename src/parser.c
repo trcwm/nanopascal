@@ -124,7 +124,16 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
             break;                            
         case OPR_OUTCHAR:
             printf("OUTCHAR\n");
-            break;                
+            break;    
+        case OPR_SAR:
+            printf("SAR\n");
+            break;        
+        case OPR_SHL:
+            printf("SHL\n");
+            break;                            
+        case OPR_SHR:
+            printf("SHR\n");
+            break;                          
         default:
             printf("?? code:%d\n", aluop);
             break;
@@ -324,6 +333,42 @@ bool parse_assignment(parse_context_t *context, const char *identname, uint16_t 
 
 bool parse_expression(parse_context_t *context)
 {
+    // SHR expression ?
+    if (match(context, TOK_SHR))
+    {
+        if (!parse_expression(context))
+        {
+            parse_error("Expect an expression after SHR", context->lex.linenum);
+            return false;
+        }
+        emit(context, VM_OPR, OPR_SHR,0,0);
+        return true;
+    }
+
+    // SHL expression ?
+    if (match(context, TOK_SHL))
+    {
+        if (!parse_expression(context))
+        {
+            parse_error("Expect an expression after SHL", context->lex.linenum);
+            return false;
+        }
+        emit(context, VM_OPR, OPR_SHL,0,0);
+        return true;
+    }
+
+    // SHL expression ?
+    if (match(context, TOK_SAR))
+    {
+        if (!parse_expression(context))
+        {
+            parse_error("Expect an expression after SAR", context->lex.linenum);
+            return false;
+        }
+        emit(context, VM_OPR, OPR_SAR,0,0);
+        return true;
+    }
+
     // check for unary + or -
     if (match(context, TOK_PLUS))
     {
