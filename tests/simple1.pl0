@@ -1,8 +1,10 @@
 Var local1;
 
 PROCEDURE PROC1;
-VAR test;
-BEGIN	
+VAR test1,test2;
+BEGIN
+  test1 := 1;
+  test2 := 2;
 	! local1;
 END;
 

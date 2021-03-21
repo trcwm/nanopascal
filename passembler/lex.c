@@ -10,39 +10,6 @@
 #include <stdint.h>
 #include "lex.h"
 
-// define PL/0 keywords
-// the order must be the same
-// as the TOK_ definitions starting at value 100
-#define NKEYWORDS 25
-const char* keywords[NKEYWORDS] =
-{
-    "LIT",
-    "OPR",
-    "LOD",
-    "STO",
-    "CAL",
-    "INT",
-    "JMP",
-    "JPC",    
-    "OUTCHAR",
-    "OUTINT",
-    "ININT",    
-    "HALT",
-    "RET",
-    "NEG",
-    "ADD",
-    "SUB",
-    "MUL",
-    "DIV",
-    "ODD",
-    "LES",
-    "LEQ",
-    "GRE",
-    "GEQ",
-    "EQU",
-    "NEQ"
-};
-
 void lex_init(lex_context_t *context, const char *sourcePtr)
 {
     context->src       = sourcePtr;

@@ -1,0 +1,35 @@
+#include "keywords.h"
+
+// define PL/0 keywords
+// the order must be the same
+// as the TOK_ definitions starting at value 100
+
+const char* keywords[NKEYWORDS] =
+{
+    "LIT",  // 0
+    "OPR",
+    "LOD",
+    "STO",
+    "CAL",
+    "INT",
+    "JMP",
+    "JPC",    
+    "OUTCHAR",
+    "OUTINT",
+    "ININT",    // 10
+    "HALT",
+    "RET",
+    "NEG",
+    "ADD",
+    "SUB",
+    "MUL",
+    "DIV",
+    "ODD",
+    "LES",
+    "LEQ",
+    "GRE",
+    "GEQ",
+    "EQU",
+    "NEQ"
+};
+

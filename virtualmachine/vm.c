@@ -11,9 +11,9 @@ void vm_init(vm_context_t *c, uint8_t *memptr)
     c->t  = 0;
     c->b  = 1;
     c->pc = 0;
-    c->dstack[1] = 0;   // DL
-    c->dstack[2] = 0;   // return address
-    c->dstack[3] = 0;   // SL    
+    c->dstack[1] = 0;   // DL, base address
+    c->dstack[2] = 0;   // old base
+    c->dstack[3] = 0;   // return address
     c->inscount = 0;
 }
 
@@ -134,6 +134,7 @@ bool vm_execute(vm_context_t *c)
         break;
     case VM_LOD:    // load variable l,d
         level = (ins->opcode >> 4); // level
+        //printf("Level B = %d\n", base(c,level));
         c->t++;
         c->dstack[c->t] = c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)];
         //if (level != 0)
@@ -143,6 +144,7 @@ bool vm_execute(vm_context_t *c)
         break;
     case VM_STO:    // load indexed variable l,d
         level = (ins->opcode >> 4); // level
+        //printf("0x%04X\t Level B = %d -> ofs = %d\n", c->pc, base(c,level), imm16);
         c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16)] = c->dstack[c->t];
         c->t--;
         //if (level != 0)
@@ -151,12 +153,15 @@ bool vm_execute(vm_context_t *c)
         //}        
         break;
     case VM_CAL:    // call procedure or function v,a
+    {
         level = (ins->opcode >> 4); // level
-        c->dstack[c->t+1] = base(c,level);
+        uint16_t prevbp = base(c,level);
+        c->dstack[c->t+1] = prevbp;
         c->dstack[c->t+2] = c->b;
         c->dstack[c->t+3] = c->pc;
         c->b=c->t+1;
         c->pc=imm16;
+    }
         break;
     case VM_INT:    // increment stack pointer 0,n
         c->t += (int16_t)imm16;

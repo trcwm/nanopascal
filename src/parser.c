@@ -9,7 +9,7 @@
 #include "parser.h"
 #include "lexer.h"
 #include "symtbl.h"
-#include "../virtualmachine/vm.h"
+#include "opcodes.h"
 
 typedef struct
 {
@@ -44,6 +44,8 @@ void emit_label(uint16_t id)
 
 bool emit_with_label(opcode_t op, uint16_t labelid)
 {
+    uint8_t level = (op >> 4) & 0xF;
+    op &= 0xF;
     switch(op)
     {
     case VM_JMP:
@@ -53,7 +55,7 @@ bool emit_with_label(opcode_t op, uint16_t labelid)
         printf("JPC @L%d\n",labelid);
         return true;
     case VM_CAL:
-        printf("CAL @L%d\n",labelid);
+        printf("CAL %d @L%d\n",level,labelid);
         return true;
     default:
         printf("Cannot emit instruction type with label\n");
@@ -129,7 +131,7 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
         printf("JMP $%04X\n", imm16);
         break;
     case VM_CAL:
-        printf("CAL $%04X\n", imm16);
+        printf("CAL %d $%04X\n", level, imm16);
         break;
     case VM_JPC:
         printf("JPC $%04X\n", imm16);
@@ -151,25 +153,6 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
         break;
     }
 }
-
-#if 0
-uint16_t asciiToInt(const char *ascii, uint16_t len)
-{
-    uint16_t v = 0;
-    while(len > 0)
-    {
-        uint16_t oldv = v;
-        v <<= 2;   //  times 4
-        v += oldv; //  make it *5
-        v <<= 1;   //  make it *10
-        uint16_t cv = (*ascii) - '0';
-        v += cv;
-        len--;
-        ascii++;
-    }
-    return v;
-}
-#endif
 
 // --======== LOCAL PARSER FUNCTIONS ========--
 
@@ -219,7 +202,10 @@ bool parse_factor(parse_context_t *context)
         }
         if (s->type == TYPE_INT)
         {
-            emit(context, VM_LOD, 0, context->proclevel - s->level, s->offset);
+            // the offset is w.r.t. the base pointer
+            // which holds T,B and the return address
+            // so local variables are offset by an additional 3.
+            emit(context, VM_LOD, 0, context->proclevel - s->level, s->offset + 3);
         }
         else if (s->type == TYPE_CONST)
         {
@@ -321,7 +307,7 @@ bool parse_assignment(parse_context_t *context, const char *identname, uint16_t 
     }
     if (s->type == TYPE_INT)
     {
-        emit(context, VM_STO, 0, context->proclevel - s->level, s->offset);
+        emit(context, VM_STO, 0, context->proclevel - s->level, s->offset+3);
     }
     else
     {
@@ -488,7 +474,7 @@ bool parse_statement(parse_context_t *context)
         }
 
         emit(context, VM_ININT,0,0,0);  // read value onto stack
-        emit(context, VM_STO,0, context->proclevel - s->level, s->offset);        
+        emit(context, VM_STO,0, context->proclevel - s->level, s->offset+3);        
     }
     // ! expression
     else if (match(context, TOK_EXCLAMATION))
@@ -810,11 +796,8 @@ bool parse_block(parse_context_t *context)
 
     // create space for local variables    
     uint16_t local_varcount = sym_numvariables(&context->symtbl);
-    if (local_varcount > 0)
-    {
-        emit_txt("INT ");
-        printf("%d\n", local_varcount+3);   // 3 for local call pointers?
-    }
+    emit_txt("INT ");
+    printf("%d\n", local_varcount+3);   // 3 for local call pointers?    
 
     // one statement
     if (!parse_statement(context))

@@ -1,0 +1,33 @@
+	VAR a1, recur;
+
+	PROCEDURE p3;
+	VAR a3;
+
+	BEGIN // p3
+		a3 := 3;
+		! 3333;
+		! a1;
+		! a2;
+        ! a3;
+	END;
+
+	PROCEDURE p2;
+	VAR a2;
+
+	BEGIN // p2
+		a2 := 2;
+		! 2222;
+		! a1;
+		! a2;
+        call p3;
+	END;
+	
+	BEGIN // main
+		a1 := 1;
+		recur := 2;
+		! 1111;
+		! a1;
+		CALL p2;
+		! 9999;
+	END.
+

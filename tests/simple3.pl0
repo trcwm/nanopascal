@@ -1,32 +1,32 @@
-CONST MAX = 100;
-VAR ARG, RET;
+const max = 100;
+var arg, ret;
 
-PROCEDURE ISPRIME;
-VAR I;
-BEGIN
-	RET := 1;
-	I := 2;
-	WHILE I < ARG DO
-	BEGIN
-		IF ARG / I * I = ARG THEN
-		BEGIN
-			RET := 0;
-			I := ARG
-		END;
-		I := I + 1
-	END
-END;
+procedure isprime;
+var i;
+begin
+	ret := 1;
+	i := 2;
+	while i < arg do
+	begin
+		if arg / i * i = arg then
+		begin
+			ret := 0;
+			i := arg
+		end;
+		i := i + 1
+	end
+end;
 
-PROCEDURE PRIMES;
-BEGIN
-	ARG := 2;
-	WHILE ARG < MAX DO
-	BEGIN
-		CALL ISPRIME;
-		IF RET = 1 THEN ! ARG;
-		ARG := ARG + 1
-	END
-END;
+procedure primes;
+begin
+	arg := 2;
+	while arg < max do
+	begin
+		call isprime;
+		if ret = 1 then ! arg;
+		arg := arg + 1
+	end
+end;
 
-CALL PRIMES
+call primes
 .

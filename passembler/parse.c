@@ -60,7 +60,7 @@ bool parse_instruction(parse_context_t *context)
     next(context);
 
     uint16_t addr = 0;
-    if ((optok == TOK_JMP) || (optok == TOK_JPC) || (optok == TOK_CAL))
+    if ((optok == TOK_JMP) || (optok == TOK_JPC))
     {
         // expect label or absolute address
         if (token(context) == TOK_INTEGER)
@@ -94,6 +94,52 @@ bool parse_instruction(parse_context_t *context)
             parse_error(context, "expected integer or label\n");
             return false;
         }
+    }
+    else if (optok == TOK_CAL)
+    {
+        // expect level 
+        if (!token(context) != TOK_INTEGER)
+        {
+            parse_error(context, "CAL level expected\n");
+        }
+
+        uint8_t level = (context->lex.lit) & 0xF;
+        opcode |= (level << 4);
+
+        next(context);
+
+        // expect label or absolute address
+        if (token(context) == TOK_INTEGER)
+        {
+            emit_ins(context, opcode, context->lex.lit);
+            context->emitaddress++;
+        }
+        else if (token(context) == TOK_LABEL)
+        {
+            sym_t *label = sym_lookup(&context->symtbl, 
+                context->lex.tokstr, 
+                context->lex.toklen);
+
+            if (label == NULL)
+            {
+                // label not found, add to fixup list!
+                fix_add(&context->fixtbl, context->lex.tokstr, context->lex.toklen,
+                    context->emitaddress);
+
+                emit_ins(context, opcode, 0);
+            }
+            else
+            {
+                emit_ins(context, opcode, label->address);
+            }
+            context->emitaddress++;            
+        }
+        else
+        {
+            // error
+            parse_error(context, "expected integer or label\n");
+            return false;
+        }        
     }
     else if ((optok == TOK_HALT) || (optok == TOK_OUTINT) || (optok == TOK_ININT) || (optok == TOK_OUTCHAR))
     {
