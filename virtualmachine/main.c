@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
 
     uint8_t *mem = NULL;
 
+    size_t bytes = 0;
     if (argc < 2)
     {
         printf("Usage: %s <code.bin>\n", argv[0]);  
@@ -88,7 +89,7 @@ int main(int argc, char *argv[])
         }
 
         fseek(fin, 0, SEEK_END);
-        size_t bytes = ftell(fin);
+        bytes = ftell(fin);
         rewind(fin);
 
         mem = malloc(bytes);
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
     }
 
     vm_context_t vm;
-    vm_init(&vm, mem);
+    vm_init(&vm, mem, bytes);
 
     while(1)
     {

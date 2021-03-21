@@ -6,7 +6,10 @@
 #include <QFileDialog>
 #include <QBoxLayout>
 #include <QHeaderView>
+#include <QKeySequence>
 #include <QCoreApplication>
+
+#include <memory>
 
 #include "common.h"
 #include "mainwindow.h"
@@ -19,6 +22,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	QMenuBar * menuBar = new QMenuBar(this);
 	setMenuBar(menuBar);    
+
+    // ------------------------------------------------------------
+    //   File menu
+    // ------------------------------------------------------------
 
     QMenu * menu = menuBar->addMenu("&File");
 
@@ -39,10 +46,24 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(action, &QAction::triggered, qApp, &QCoreApplication::quit, Qt::QueuedConnection);
     menu->addAction(action);
 
+    // ------------------------------------------------------------
+    //   Debug menu
+    // ------------------------------------------------------------
+
+    menu = menuBar->addMenu("&Debug");
+	// Step
+	action = new QAction("Step", this);
+    action->setShortcut(QKeySequence(Qt::Key_F10));
+	connect(action, &QAction::triggered, this, &MainWindow::OnStep);
+	menu->addAction(action);
+
     QStatusBar * statusBar = new QStatusBar(this);
     setStatusBar(statusBar);
 
-    // build the GUI
+    // ------------------------------------------------------------
+    //   build the GUI
+    // ------------------------------------------------------------
+
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
@@ -54,18 +75,26 @@ MainWindow::MainWindow(QWidget *parent) :
     m_regTable->horizontalHeader()->setStretchLastSection(true);
     cpuinfoLayout->addWidget(m_regTable,0);
 
-    m_memTable = new QTableView(centralWidget);
-    cpuinfoLayout->addWidget(m_memTable,2);
+    m_stackTable = new QTableView(centralWidget);
+    m_stackTable->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    m_stackTable->horizontalHeader()->setStretchLastSection(true);
+    cpuinfoLayout->addWidget(m_stackTable,2);
 
     mainLayout->addLayout(cpuinfoLayout);
 
     m_codeTable = new QTableView(centralWidget);
+    m_codeTable->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    m_codeTable->horizontalHeader()->setStretchLastSection(true);    
     mainLayout->addWidget(m_codeTable,1);
 
     // setup models
     m_regmodel = new RegModel(&m_vm);
-    m_regTable->setModel(m_regmodel);
+    m_stackmodel = new StackModel(&m_vm);
+    m_codemodel = new InstrModel(&m_vm);
 
+    m_regTable->setModel(m_regmodel);
+    m_stackTable->setModel(m_stackmodel);
+    m_codeTable->setModel(m_codemodel);
 
     centralWidget->setLayout(mainLayout);
 }
@@ -73,6 +102,8 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     m_regTable->setModel(nullptr);
+    m_stackTable->setModel(nullptr);
+    m_codeTable->setModel(nullptr);
 }
 
 void MainWindow::OnFileNew()
@@ -100,5 +131,41 @@ void MainWindow::OnFileOpen()
                             CurrentDir.absoluteFilePath(SelectedFile));
 
         qDebug() << "Loading " << SelectedFile;
+
+        FILE *fin = fopen(SelectedFile.toUtf8().data(), "rb");
+        if (fin == nullptr)
+        {
+            qDebug() << "Error loading file " << SelectedFile;
+            return;
+        }
+
+        fseek(fin,0,SEEK_END);
+        size_t bytes = ftell(fin);
+        rewind(fin);
+
+        std::unique_ptr<uint8_t> data(new uint8_t[bytes]);
+        if (fread(data.get(), 1, bytes, fin) != bytes)
+        {
+            qDebug() << "Error loading file " << SelectedFile;
+            fclose(fin);
+            return;            
+        }
+
+        m_vm.clear();
+        m_vm.load(data.get(), bytes);
+
+        m_regmodel->update();
+        m_stackmodel->update();
+        m_codemodel->update();
+
+        fclose(fin);
     }
+}
+
+void MainWindow::OnStep()
+{
+    m_vm.step();
+    m_codemodel->update();
+    m_regmodel->update();
+    m_stackmodel->update();
 }

@@ -20,7 +20,8 @@ typedef struct
     uint16_t pc;        /* program counter     (mem)    */
     uint16_t t;         /* stack pointer/index (dstack) */
     uint16_t b;         /* base pointer/index  (dstack) */
-    uint16_t inscount;
+    uint16_t inscount;  /* number of instructions executed */
+    uint16_t memsize;   /* number of bytes in mem buffer */
 } vm_context_t;
 
 

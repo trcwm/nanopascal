@@ -31,6 +31,8 @@ public:
         m_halted = halt;
     }
 
+    bool step();
+
     vm_context_t *m_context;
 
 protected:

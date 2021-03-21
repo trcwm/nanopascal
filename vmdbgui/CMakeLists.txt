@@ -20,6 +20,7 @@ add_executable(vmdbgui
     src/vmwrapper.cpp
     src/regmodel.cpp
     src/stackmodel.cpp
+    src/instrmodel.cpp
     src/main.cpp
 )
 

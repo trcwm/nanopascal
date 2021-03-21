@@ -12,6 +12,7 @@
 #include "symtbl.h"
 #include "parse.h"
 #include "fixuptbl.h"
+#include "opcodes.h"
 
 typedef struct 
 {
@@ -183,67 +184,67 @@ bool parse_instruction(parse_context_t *context)
         // alu operations
         if (optok == TOK_RET)
         {
-            emit_ins(context, 0x01, 0x00); // opr
+            emit_ins(context, 0x01, OPR_RET); // opr
             context->emitaddress++;
         }
         else if (optok == TOK_NEG)
         {
-            emit_ins(context, 0x01, 0x01); // opr
+            emit_ins(context, 0x01, OPR_NEG); // opr
             context->emitaddress++;       
         }
         else if (optok == TOK_ADD)
         {
-            emit_ins(context, 0x01, 0x02); // opr
+            emit_ins(context, 0x01, OPR_ADD); // opr
             context->emitaddress++;
         }
         else if (optok == TOK_SUB)
         {
-            emit_ins(context, 0x01, 0x03); // opr
+            emit_ins(context, 0x01, OPR_SUB); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_MUL)
         {
-            emit_ins(context, 0x01, 0x04); // opr
+            emit_ins(context, 0x01, OPR_MUL); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_DIV)
         {
-            emit_ins(context, 0x01, 0x05); // opr
+            emit_ins(context, 0x01, OPR_DIV); // opr
             context->emitaddress++;
         }
         else if (optok == TOK_ODD)
         {
-            emit_ins(context, 0x01, 0x06); // opr
+            emit_ins(context, 0x01, OPR_ODD); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_EQU)
         {
-            emit_ins(context, 0x01, 0x08); // opr
+            emit_ins(context, 0x01, OPR_EQ); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_NEQ)
         {
-            emit_ins(context, 0x01, 0x09); // opr
+            emit_ins(context, 0x01, OPR_NEQ); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_LES)
         {
-            emit_ins(context, 0x01, 0x0A); // opr
+            emit_ins(context, 0x01, OPR_LESS); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_LEQ)
         {
-            emit_ins(context, 0x01, 0x0B); // opr
+            emit_ins(context, 0x01, OPR_LEQ); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_GRE)
         {
-            emit_ins(context, 0x01, 0x0C); // opr
+            emit_ins(context, 0x01, OPR_GREATER); // opr
             context->emitaddress++; 
         }
         else if (optok == TOK_GEQ)
         {
-            emit_ins(context, 0x01, 0x0D); // opr
+            emit_ins(context, 0x01, OPR_GEQ); // opr
             context->emitaddress++; 
         }
         else

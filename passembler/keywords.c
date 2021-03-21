@@ -29,7 +29,7 @@ const char* keywords[NKEYWORDS] =
     "LEQ",
     "GRE",
     "GEQ",
-    "EQU",
-    "NEQ"
+    "NEQ",
+    "EQU"
 };
 

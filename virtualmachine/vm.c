@@ -4,10 +4,11 @@
 #include <stdlib.h>
 #include "vm.h"
 
-void vm_init(vm_context_t *c, uint8_t *memptr)
+void vm_init(vm_context_t *c, uint8_t *memptr, uint16_t memsize)
 {
-    c->dstack = malloc(16384 * sizeof(uint16_t));
-    c->mem    = memptr;
+    c->dstack  = calloc(16384, sizeof(uint16_t));
+    c->mem     = memptr;
+    c->memsize = memsize;
     c->t  = 0;
     c->b  = 1;
     c->pc = 0;

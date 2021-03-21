@@ -18,6 +18,12 @@ int RegModel::columnCount(const QModelIndex &parent) const
     return 2;
 }
 
+void RegModel::update()
+{
+    beginResetModel();
+    endResetModel();
+}
+
 QVariant RegModel::data(const QModelIndex &index, int role) const
 {
     const QStringList regs = {"PC","T","B","ST0","ST1"};

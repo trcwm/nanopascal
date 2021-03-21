@@ -6,19 +6,24 @@
 
 StackModel::StackModel(VMWrapper *vm, QObject *parent) : m_vm(vm), QAbstractTableModel(parent)
 {
-
 }
 
 int StackModel::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return 5;
+    return memsize;
 }
 
 int StackModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
     return 2;
+}
+
+void StackModel::update()
+{
+    beginResetModel();
+    endResetModel();
 }
 
 QVariant StackModel::data(const QModelIndex &index, int role) const
@@ -33,7 +38,7 @@ QVariant StackModel::data(const QModelIndex &index, int role) const
         return QVariant();
     }
 
-    if (index.row() < 1024)
+    if (index.row() >= memsize)
     {
         return QVariant();
     }
@@ -43,6 +48,10 @@ QVariant StackModel::data(const QModelIndex &index, int role) const
         if (index.row() == m_vm->m_context->t)
         {
             return QColor(128,128,128);
+        }
+        else if (index.row() == m_vm->m_context->b)
+        {
+            return QColor(128,255,255);
         }
         else
         {
@@ -57,7 +66,7 @@ QVariant StackModel::data(const QModelIndex &index, int role) const
         case 0:
             return QStringLiteral("0x%1").arg(index.row(), 4, 16, QLatin1Char('0'));
         case 1:
-            return m_vm->m_context->dstack[index.row()];
+            return QStringLiteral("0x%1\t%2").arg(m_vm->m_context->dstack[index.row()], 4, 16, QLatin1Char('0')).arg(m_vm->m_context->dstack[index.row()]);
         default:
             break;        
         }

@@ -282,7 +282,9 @@ bool parse_call(parse_context_t *context)
         return false;
     }
 
-    emit_with_label(VM_CAL, s->offset /* used as label id */);
+    uint8_t opcode = VM_CAL | ((context->proclevel - s->level) << 4);
+
+    emit_with_label(opcode, s->offset /* used as label id */);
     return true;
 }
 
@@ -440,6 +442,12 @@ bool parse_condition(parse_context_t *context)
     {
         emit(context, VM_OPR, OPR_GREATER,0,0);
     }
+    else
+    {
+        parse_error("Condition code not matched\n", context->lex.linenum);
+        return false;
+    }
+
     return true;
 }
 

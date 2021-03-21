@@ -3,12 +3,12 @@
 #include <QAbstractTableModel>
 #include "vmwrapper.h"
 
-class StackModel : public QAbstractTableModel
+class InstrModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 public:
-    StackModel(VMWrapper *vm, QObject *parent = 0);
+    InstrModel(VMWrapper *vm, QObject *parent = 0);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const Q_DECL_OVERRIDE;
     int columnCount(const QModelIndex &parent = QModelIndex()) const Q_DECL_OVERRIDE;
@@ -19,6 +19,6 @@ public:
     void update();
 
 protected:
-    static constexpr const size_t memsize = 1024;
+    QString disasm(uint16_t pc) const;
     VMWrapper *m_vm;
 };
