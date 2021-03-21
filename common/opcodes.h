@@ -20,7 +20,7 @@ typedef struct
     uint16_t pc;        /* program counter     (mem)    */
     uint16_t t;         /* stack pointer/index (dstack) */
     uint16_t b;         /* base pointer/index  (dstack) */
-    uint16_t inscount;  /* number of instructions executed */
+    size_t   inscount;  /* number of instructions executed */
     uint16_t memsize;   /* number of bytes in mem buffer */
 } vm_context_t;
 
@@ -35,9 +35,6 @@ typedef enum
     VM_INT      = 5,        // increment stack pointer 0,n
     VM_JMP      = 6,        // unconditional jump 0,a
     VM_JPC      = 7,        // jump if false (tos = 0) 0,a
-    VM_OUTCHAR  = 8,
-    VM_OUTINT   = 9,
-    VM_ININT    = 10,
     VM_HALT
 } opcode_t; // lower nibble code
 
@@ -57,7 +54,14 @@ typedef enum
     OPR_LESS    = 10,
     OPR_LEQ     = 11,
     OPR_GREATER = 12,
-    OPR_GEQ     = 13
+    OPR_GEQ     = 13,
+    OPR_SHR     = 14,
+    OPR_SHL     = 15,
+    OPR_SAR     = 16,
+    OPR_OUTCHAR = 17,
+    OPR_OUTINT  = 18,
+    OPR_INCHAR  = 19,
+    OPR_ININT   = 20
 } opr_t;
 
 #pragma pack(push,1)

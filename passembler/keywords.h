@@ -1,6 +1,6 @@
 #pragma once
 
-#define NKEYWORDS 25
+#define NKEYWORDS 29
 extern const char* keywords[NKEYWORDS];
 
 typedef enum 
@@ -20,9 +20,6 @@ typedef enum
     TOK_INT,
     TOK_JMP,
     TOK_JPC,
-    TOK_OUTCHAR,
-    TOK_OUTINT,
-    TOK_ININT,    
     TOK_HALT,
     // OPR functions:
     TOK_RET,
@@ -38,6 +35,13 @@ typedef enum
     TOK_GEQ,
     TOK_NEQ,
     TOK_EQU,
+    TOK_SHL,
+    TOK_SHR,
+    TOK_SAR,
+    TOK_OUTCHAR,
+    TOK_OUTINT,
+    TOK_INCHAR,
+    TOK_ININT,    
     TOK_EOF = 255
 } token_t;
 

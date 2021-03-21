@@ -48,6 +48,13 @@ void writeInt(int16_t v)
     fflush(stdout);
 }
 
+int16_t readChar()
+{
+    char v;
+    scanf("%c", &v);
+    return v;
+}
+
 void writeChar(int16_t v)
 {
     printf("%c", (char)v);
@@ -128,6 +135,22 @@ bool vm_execute(vm_context_t *c)
             c->t--;
             c->dstack[c->t] = (c->dstack[c->t] >= c->dstack[c->t+1]) ? 1 : 0;
             break;
+        case OPR_OUTCHAR:
+            writeChar(c->dstack[c->t]);
+            c->t--;
+            break;                 
+        case OPR_OUTINT:
+            writeInt(c->dstack[c->t]);
+            c->t--;
+            break;                           
+        case OPR_INCHAR:
+            c->t++;
+            c->dstack[c->t] = readChar();
+            break;
+        case OPR_ININT:
+            c->t++;
+            c->dstack[c->t] = readInt();
+            break;            
         default:
             //error
             break;
@@ -177,18 +200,6 @@ bool vm_execute(vm_context_t *c)
         }
         c->t--;
         break;
-    case VM_ININT:
-        c->t++;
-        c->dstack[c->t] = readInt();
-        break;                                                         
-    case VM_OUTINT:
-        writeInt(c->dstack[c->t]);
-        c->t--;
-        break;    
-    case VM_OUTCHAR:
-        writeChar(c->dstack[c->t]);
-        c->t--;
-        break;                            
     case VM_HALT:
         return false;
     default:

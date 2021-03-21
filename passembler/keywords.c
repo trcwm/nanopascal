@@ -13,10 +13,7 @@ const char* keywords[NKEYWORDS] =
     "CAL",
     "INT",
     "JMP",
-    "JPC",    
-    "OUTCHAR",
-    "OUTINT",
-    "ININT",    // 10
+    "JPC",
     "HALT",
     "RET",
     "NEG",
@@ -30,6 +27,13 @@ const char* keywords[NKEYWORDS] =
     "GRE",
     "GEQ",
     "NEQ",
-    "EQU"
+    "EQU",
+    "SHL",
+    "SHR",
+    "SAR",
+    "OUTCHAR",
+    "OUTINT",
+    "INCHAR",
+    "ININT"
 };
 

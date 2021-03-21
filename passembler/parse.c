@@ -99,7 +99,7 @@ bool parse_instruction(parse_context_t *context)
     else if (optok == TOK_CAL)
     {
         // expect level 
-        if (!token(context) != TOK_INTEGER)
+        if (token(context) != TOK_INTEGER)
         {
             parse_error(context, "CAL level expected\n");
         }
@@ -142,7 +142,7 @@ bool parse_instruction(parse_context_t *context)
             return false;
         }        
     }
-    else if ((optok == TOK_HALT) || (optok == TOK_OUTINT) || (optok == TOK_ININT) || (optok == TOK_OUTCHAR))
+    else if (optok == TOK_HALT)
     {
         emit_ins(context, opcode, 0);
         context->emitaddress++;
@@ -247,6 +247,41 @@ bool parse_instruction(parse_context_t *context)
             emit_ins(context, 0x01, OPR_GEQ); // opr
             context->emitaddress++; 
         }
+        else if (optok == TOK_OUTCHAR)
+        {
+            emit_ins(context, 0x01, OPR_OUTCHAR); // opr
+            context->emitaddress++;             
+        }
+        else if (optok == TOK_OUTINT)
+        {
+            emit_ins(context, 0x01, OPR_OUTINT); // opr
+            context->emitaddress++;             
+        }   
+        else if (optok == TOK_INCHAR)
+        {
+            emit_ins(context, 0x01, OPR_INCHAR); // opr
+            context->emitaddress++;             
+        }
+        else if (optok == TOK_ININT)
+        {
+            emit_ins(context, 0x01, OPR_ININT); // opr
+            context->emitaddress++;             
+        }        
+        else if (optok == TOK_SHL)
+        {
+            emit_ins(context, 0x01, OPR_SHL); // opr
+            context->emitaddress++;             
+        }   
+        else if (optok == TOK_SHR)
+        {
+            emit_ins(context, 0x01, OPR_SHR); // opr
+            context->emitaddress++;             
+        }
+        else if (optok == TOK_SAR)
+        {
+            emit_ins(context, 0x01, OPR_SAR); // opr
+            context->emitaddress++;             
+        }                
         else
         {
             parse_error(context, "undefined opcode\n");

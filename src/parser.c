@@ -112,7 +112,19 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
             break;
         case OPR_EQ:
             printf("EQU\n");
-            break;            
+            break;  
+        case OPR_ININT:
+            printf("ININT\n");
+            break;
+        case OPR_OUTINT:
+            printf("OUTINT\n");
+            break;        
+        case OPR_INCHAR:
+            printf("INCHAR\n");
+            break;                            
+        case OPR_OUTCHAR:
+            printf("OUTCHAR\n");
+            break;                
         default:
             printf("?? code:%d\n", aluop);
             break;
@@ -139,15 +151,6 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
     case VM_HALT:
         printf("HALT\n");
         break;
-    case VM_ININT:
-        printf("ININT\n");
-        break;
-    case VM_OUTINT:
-        printf("OUTINT\n");
-        break;        
-    case VM_OUTCHAR:
-        printf("OUTCHAR\n");
-        break;                
     default:
         printf("??? code:%d\n", op);
         break;
@@ -481,7 +484,7 @@ bool parse_statement(parse_context_t *context)
             return false;
         }
 
-        emit(context, VM_ININT,0,0,0);  // read value onto stack
+        emit(context, VM_OPR, OPR_ININT,0,0);  // read value onto stack
         emit(context, VM_STO,0, context->proclevel - s->level, s->offset+3);        
     }
     // ! expression
@@ -492,7 +495,7 @@ bool parse_statement(parse_context_t *context)
             parse_error("! expression invalid\n", context->lex.linenum);
         }
 
-        emit(context, VM_OUTINT,0,0,0);
+        emit(context, VM_OPR, OPR_OUTINT, 0,0);
 
         while(match(context, TOK_COMMA))
         {
@@ -502,14 +505,15 @@ bool parse_statement(parse_context_t *context)
             }            
 
             emit(context, VM_LIT, 0,0,32);
-            emit(context, VM_OUTCHAR,0,0,0);            
-            emit(context, VM_OUTINT,0,0,0);
+            emit(context, VM_OPR, OPR_OUTCHAR,0,0);
+            emit(context, VM_OPR, OPR_OUTINT,0,0);
         }
 
+        // line feed
         emit(context, VM_LIT, 0,0,10);
-        emit(context, VM_OUTCHAR,0,0,0);
+        emit(context, VM_OPR, OPR_OUTCHAR,0,0);
         emit(context, VM_LIT, 0,0,13);
-        emit(context, VM_OUTCHAR,0,0,0);
+        emit(context, VM_OPR, OPR_OUTCHAR,0,0);
     }
     // BEGIN .. END
     else if (match(context, TOK_BEGIN))

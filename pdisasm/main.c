@@ -47,8 +47,29 @@ void printalu(uint16_t imm16)
     case OPR_GEQ:
         printf("GEQ\n");
         break;                                                
+    case OPR_SHL:
+        printf("SHL\n");
+        break;
+    case OPR_SHR:
+        printf("SHR\n");
+        break;  
+    case OPR_SAR:
+        printf("SAR\n");
+        break;
+    case OPR_ININT:
+        printf("ININT\n");
+        break;
+    case OPR_OUTINT:
+        printf("OUTINT\n");
+        break;        
+    case OPR_INCHAR:
+        printf("INCHAR\n");
+        break;                        
+    case OPR_OUTCHAR:
+        printf("OUTCHAR\n");
+        break;                        
     default:
-        printf("???\n");
+        printf("??? ALU OPR %04X\n", imm16);
         break;
     }
 }
@@ -86,17 +107,8 @@ void printins(const instruction_t *ins)
     case VM_HALT:
         printf("HALT\n");
         break; 
-    case VM_ININT:
-        printf("ININT\n");
-        break;
-    case VM_OUTINT:
-        printf("OUTINT\n");
-        break;        
-    case VM_OUTCHAR:
-        printf("OUTCHAR\n");
-        break;                        
     default:
-        printf("???\n");
+        printf("??? opcode = 0x%02X\n", opcode);
         break;
     }
 }

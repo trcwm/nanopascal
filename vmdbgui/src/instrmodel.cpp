@@ -144,7 +144,28 @@ QString decodealu(uint16_t imm16)
              
     case OPR_GEQ:
         return QString("GEQ");
-                                                        
+
+    case OPR_SHL:
+        return QString("SHL");
+
+    case OPR_SHR:
+        return QString("SHR");
+
+    case OPR_SAR:
+        return QString("SAR");
+
+    case OPR_OUTCHAR:
+        return QString("OUTCHAR");
+
+    case OPR_OUTINT:
+        return QString("OUTINT");
+
+    case OPR_INCHAR:
+        return QString("OUTCHAR");
+
+    case OPR_ININT:
+        return QString("ININT");
+
     default:
         return QString("???\n");
         
@@ -184,16 +205,7 @@ QString InstrModel::disasm(uint16_t pc) const
         
     case VM_HALT:
         return QString::asprintf("HALT");
-         
-    case VM_ININT:
-        return QString::asprintf("ININT");
-        
-    case VM_OUTINT:
-        return QString::asprintf("OUTINT");
-                
-    case VM_OUTCHAR:
-        return QString::asprintf("OUTCHAR");
-                                
+                                         
     default:
         return QString::asprintf("???\n");
         
