@@ -1,18 +1,18 @@
 	VAR a1, recur;
 
-	PROCEDURE p3;
-	VAR a3;
-
-	BEGIN // p3
-		a3 := 3;
-		! 3333;
-		! a1;
-		! a2;
-        ! a3;
-	END;
-
 	PROCEDURE p2;
 	VAR a2;
+
+		PROCEDURE p3;
+		VAR a3;
+
+		BEGIN // p3
+			a3 := 3;
+			! 3333;
+			! a1;
+			! a2;
+			! a3;
+		END;
 
 	BEGIN // p2
 		a2 := 2;

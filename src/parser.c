@@ -199,7 +199,7 @@ static bool match(parse_context_t *context, const token_t tok)
 // --======== GRAMMAR/PRODUCTIONS ========--
 
 // predeclarations
-bool parse_block(parse_context_t *context);
+bool parse_block(parse_context_t *context, uint16_t labelid);
 bool parse_expression(parse_context_t *context);
 
 bool parse_factor(parse_context_t *context)
@@ -579,7 +579,7 @@ bool parse_statement(parse_context_t *context)
             return false;
         }
     }
-    // IF .. THEN
+    // IF .. THEN .. ELSE
     else if (match(context, TOK_IF))
     {
         emit_txt("; IF\n");
@@ -661,6 +661,94 @@ bool parse_statement(parse_context_t *context)
         emit_with_label(VM_JMP, jmp_label);
         emit_label(jpc_label);
         emit_txt("; END WHILE\n");
+    }
+    // FOR .. TO/DOWNTO .. DO
+    else if (match(context, TOK_FOR))
+    {
+        emit_txt("; FOR\n");
+        if (!match(context, TOK_IDENT))
+        {
+            parse_error("Expected an identifier after FOR\n", context->lex.linenum);
+            return false;
+        }
+
+        sym_t *ident = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+
+        if (ident == NULL)
+        {
+            parse_error("Cannot find symbol", context->lex.linenum);
+            return false;
+        }
+
+        if (!match(context, TOK_ASSIGN))
+        {
+            parse_error("Expected := after FOR <variable>\n", context->lex.linenum);
+            return false;
+        }        
+
+        // init expression
+        if (!parse_expression(context))
+        {
+            parse_error("Expected an identifier after FOR <variable>:=\n", context->lex.linenum);
+            return false;            
+        }
+
+        if (ident->type == TYPE_INT)
+        {
+            emit(context, VM_STO, 0, context->proclevel - ident->level, ident->offset+3);
+        }
+        else
+        {
+            parse_error("Expected a variable after FOR\n", context->lex.linenum);
+            return false;
+        }
+
+        if (!match(context, TOK_TO))
+        {
+            parse_error("Expected TO in FOR\n", context->lex.linenum);
+            return false;
+        }
+
+        uint16_t jmp_label = context->labelid++;
+        emit_label(jmp_label);
+        emit_txt("; FOR check expression\n");
+
+        // check expression
+        uint16_t exit_label = context->labelid++;
+        emit(context, VM_LOD, 0, context->proclevel - ident->level, ident->offset+3);
+
+        if (!parse_expression(context))
+        {
+            parse_error("Expected an identifier after FOR\n", context->lex.linenum);
+            return false;            
+        }
+
+        emit(context, VM_OPR, OPR_LEQ, 0,0);
+        emit_with_label(VM_JPC, exit_label);
+
+        if (!match(context, TOK_DO))
+        {
+            parse_error("Expected DO in FOR\n", context->lex.linenum);
+            return false;
+        }            
+
+        emit_txt("; FOR DO expression\n");
+
+        if (!parse_statement(context))
+        {
+            parse_error("Expected an statement in FOR loop\n", context->lex.linenum);
+            return false;            
+        }
+
+        // increment the loop counter
+        emit(context, VM_LOD, 0, context->proclevel - ident->level, ident->offset+3);
+        emit(context, VM_LIT, 0,0,1);
+        emit(context, VM_OPR, OPR_ADD,0,0);
+        emit(context, VM_STO, 0, context->proclevel - ident->level, ident->offset+3);
+        emit_with_label(VM_JMP, jmp_label);
+
+        emit_label(exit_label);
+        emit_txt("; end FOR\n");
     }
 
     // everything is optional, so we always return true.
@@ -777,10 +865,10 @@ bool parse_procedure(parse_context_t *context)
     if (!sym_add(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen))
         return false;
     
-    emit_label(context->labelid);
-
+    uint16_t proc_label = context->labelid++;
+    
     // add label id to the procedure symbol
-    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = context->labelid++;
+    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = proc_label;
 
     sym_enter(&context->symtbl);
 
@@ -798,7 +886,7 @@ bool parse_procedure(parse_context_t *context)
         return false;
     }
 
-    if (!parse_block(context))
+    if (!parse_block(context, proc_label))
     {
         return false;
     }
@@ -820,7 +908,7 @@ bool parse_procedure(parse_context_t *context)
     return true;
 }
 
-bool parse_block(parse_context_t *context)
+bool parse_block(parse_context_t *context, uint16_t labelid)
 {
     // zero or more const
     while (match(context, TOK_CONST))
@@ -843,13 +931,7 @@ bool parse_block(parse_context_t *context)
             return false;
     }
 
-    if (context->proclevel == 0)
-    {
-        // here we have the top-level entry point
-        emit_txt("@ENTRY:\n");
-
-        
-    }
+    emit_label(labelid);
 
     // create space for local variables    
     uint16_t local_varcount = sym_numvariables(&context->symtbl);
@@ -880,10 +962,12 @@ bool parse(char *src)
         return false;
     }
 
-    emit_txt("JMP @ENTRY\n");
+    
+    uint16_t entry_label = context.labelid++;
+    emit_with_label(VM_JMP, entry_label);
 
     // parse program
-    if (!parse_block(&context))
+    if (!parse_block(&context, entry_label))
     {
         parse_error("Parse error\n", context.lex.linenum);
         return false;

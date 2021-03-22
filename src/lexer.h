@@ -51,7 +51,10 @@ typedef enum
     TOK_ELSE,
     TOK_SHR,
     TOK_SHL,
-    TOK_SAR    
+    TOK_SAR,
+    TOK_FOR,
+    TOK_TO,
+    TOK_DOWNTO 
 } token_t;
 
 typedef enum

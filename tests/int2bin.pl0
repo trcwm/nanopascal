@@ -1,0 +1,19 @@
+var x,i;
+
+begin
+    i := 8;
+    ? x;
+    while i # 0 do
+    begin
+        if odd x then
+            begin
+                ! 1
+            end
+        else
+            begin
+                ! 0
+            end;
+        x := SHR x;
+        i := i - 1   
+    end;
+end.

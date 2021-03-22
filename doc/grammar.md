@@ -12,6 +12,7 @@ statement = [ ident ":=" expression | "call" ident
               | "?" ident | "!" expression {"," expression}
               | "begin" statement {";" statement } "end" 
               | "if" condition "then" statement [ "else" statement ]
+              | "for" ident ":=" expression ("to"|"downto") expression "do" statement.
               | "while" condition "do" statement ].
 
 condition = "odd" expression |

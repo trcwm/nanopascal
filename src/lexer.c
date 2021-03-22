@@ -13,7 +13,7 @@
 // define PL/0 keywords
 // the order must be the same
 // as the TOK_ definitions starting at value 100
-#define NKEYWORDS 16
+#define NKEYWORDS 19
 const char* keywords[NKEYWORDS] =
 {
     "PROGRAM",
@@ -32,6 +32,9 @@ const char* keywords[NKEYWORDS] =
     "SHR",
     "SHL",
     "SAR",
+    "FOR",
+    "TO",
+    "DOWNTO"
 };
 
 void lexer_init(lexer_context_t *context, char *source)
