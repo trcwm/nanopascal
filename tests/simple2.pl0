@@ -1,8 +1,8 @@
 CONST xx = 10;
-VAR x, y, z, q, r, n, f;
+VAR x, y, z, q, r, n, f : INTEGER;
 
 PROCEDURE multiply;
-VAR a, b;
+VAR a, b : INTEGER;
 BEGIN
   a := x;
   b := y;
@@ -10,8 +10,8 @@ BEGIN
   WHILE b > 0 DO
   BEGIN    
     IF ODD b THEN z := z + a;
-    a := 2 * a;
-    b := b / 2
+    a := SHL a;
+    b := SHR b;
   END
 END;
 

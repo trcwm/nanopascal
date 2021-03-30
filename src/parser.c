@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "lexer.h"
 #include "symtbl.h"
+#include "typestack.h"
 #include "opcodes.h"
 
 typedef struct
@@ -19,9 +20,12 @@ typedef struct
     int16_t         matchlen;       ///< string length of last matched token
     token_t         matchtok;       ///< matched token
 
-    uint16_t        labelid;
+    typestack_t     typestack;
+
+    uint16_t        labelid;        ///< id of next label to be emitted.
     uint16_t        number;         ///< last number emitted from the lexer
     uint8_t         proclevel;      ///< nesting level of procedure
+
 } parse_context_t;
 
 void emit_txt(const char *comment)
@@ -166,6 +170,16 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
     }
 }
 
+void check_tstack(const parse_context_t *context)
+{
+    // check that the operation stack is empty
+    if (context->typestack.stackptr != 0)
+    {
+        emit_txt("Expected typestack to be emtpy\n");
+        ts_dump(&context->typestack);
+    }
+}
+
 // --======== LOCAL PARSER FUNCTIONS ========--
 
 static void parse_error(const char *errstr, int16_t lineNum)
@@ -202,36 +216,104 @@ static bool match(parse_context_t *context, const token_t tok)
 bool parse_block(parse_context_t *context, uint16_t labelid);
 bool parse_expression(parse_context_t *context);
 
+#if 0
+bool parse_simple_type(parse_context_t *context)
+{
+    if (match(context, TOK_INTEGER))
+    {
+        //context->typeinfo = TYPE_INT;
+        return true;
+    }
+    
+    if (match(context, TOK_CHAR))
+    {
+        //context->typeinfo = TYPE_CHAR;
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_type(parse_context_t *context)
+{
+    if (match(context, TOK_ARRAY))
+    {
+        // no support for array - yet.
+        parse_error("No array support - yet", context->lex.linenum);
+        return false;
+    }
+    else
+    {
+        if (!parse_simple_type(context))
+        {
+            parse_error("Expected a simply type", context->lex.linenum);
+            return false;
+        }
+    }
+    return true;
+}
+#endif 
+
+bool parse_const_id(parse_context_t *context)
+{
+    const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+    if (s == NULL)
+    {
+        return false;
+    }
+
+    if (s->type == TYPE_CONST)
+    {
+        ts_push(&context->typestack, TYPE_CONST);
+        emit(context, VM_LIT, 0, 0, s->offset);
+        return true;
+    }
+    return false;
+}
+
+bool parse_variable_id(parse_context_t *context)
+{
+    const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+    if (s == NULL)
+    {
+        return false;
+    }
+
+    if ((s->type == TYPE_INT) || (s->type == TYPE_CHAR))
+    {
+        // the offset is w.r.t. the base pointer
+        // which holds T,B and the return address
+        // so local variables are offset by an additional 3.
+        ts_push(&context->typestack, s->type);
+        emit(context, VM_LOD, 0, context->proclevel - s->level, s->offset + 3);
+        return true;
+    }
+    return false;
+}
+
 bool parse_factor(parse_context_t *context)
 {
     if (match(context, TOK_IDENT))
     {
-        const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
-        if (s == NULL)
+        // accept constants or variables
+
+        if (parse_const_id(context))
         {
-            parse_error("Cannot find symbol", context->lex.linenum);
-            return false;
+            return true;
         }
-        if (s->type == TYPE_INT)
+
+        if (parse_variable_id(context))
         {
-            // the offset is w.r.t. the base pointer
-            // which holds T,B and the return address
-            // so local variables are offset by an additional 3.
-            emit(context, VM_LOD, 0, context->proclevel - s->level, s->offset + 3);
+            return true;
         }
-        else if (s->type == TYPE_CONST)
-        {
-            //emit(context, VM_LIT, 0, context->proclevel - s->level, s->offset);
-            emit(context, VM_LIT, 0, 0, s->offset);
-        }
-        else
-        {
-            parse_error("Incompatible type", context->lex.linenum);
-        }
-        return true;
+
+        parse_error("Incompatible type\n", context->lex.linenum);
+        return false;
     }
-    else if (match(context, TOK_INTEGER))
+    else if (match(context, TOK_NUMBER))
     {
+        // literal!
+        ts_push(&context->typestack, TYPE_CONST);
         emit(context, VM_LIT, 0, 0, context->number);
         return true;
     }
@@ -270,10 +352,31 @@ bool parse_term(parse_context_t *context)
             return false;
         }
 
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        vartype_t op2 = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        if (op1 == TYPE_CONST) op1 = TYPE_INT;
+        if (op2 == TYPE_CONST) op2 = TYPE_INT;
+
+        if ((op1 != TYPE_INT) || (op2 != TYPE_INT))
+        {
+            parse_error("MUL/DIV expect integers as operands\n", context->lex.linenum);
+            return false;            
+        }
+
         if (optok == TOK_STAR)
+        {
             emit(context, VM_OPR, OPR_MUL,0,0);
+        }
         else
+        {
             emit(context, VM_OPR, OPR_DIV,0,0);
+        }
+
+        ts_push(&context->typestack, TYPE_INT);
     }
 
     return true;
@@ -316,16 +419,17 @@ bool parse_assignment(parse_context_t *context, const char *identname, uint16_t 
     const sym_t* s = sym_lookup(&context->symtbl, identname, identlen);
     if (s == NULL)
     {
-        parse_error("Cannot find symbol", context->lex.linenum);
+        parse_error("Cannot find symbol\n", context->lex.linenum);
         return false;
     }
     if (s->type == TYPE_INT)
     {
+        ts_pop(&context->typestack);
         emit(context, VM_STO, 0, context->proclevel - s->level, s->offset+3);
     }
     else
     {
-        parse_error("Wrong type", context->lex.linenum);
+        parse_error("Wrong type\n", context->lex.linenum);
     }
 
     return true;
@@ -338,10 +442,20 @@ bool parse_expression(parse_context_t *context)
     {
         if (!parse_expression(context))
         {
-            parse_error("Expect an expression after SHR", context->lex.linenum);
+            parse_error("Expect an expression after SHR\n", context->lex.linenum);
             return false;
         }
-        emit(context, VM_OPR, OPR_SHR,0,0);
+
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+        {
+            parse_error("argument of SHR must be INTEGER or CONSTANT\n", context->lex.linenum);
+            return false;
+        }
+
+        emit(context, VM_OPR, OPR_SHR, 0, 0);
         return true;
     }
 
@@ -350,21 +464,39 @@ bool parse_expression(parse_context_t *context)
     {
         if (!parse_expression(context))
         {
-            parse_error("Expect an expression after SHL", context->lex.linenum);
+            parse_error("Expect an expression after SHL\n", context->lex.linenum);
             return false;
         }
+
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        
+        if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+        {
+            parse_error("argument of SHL must be INTEGER or CONSTANT\n", context->lex.linenum);
+            return false;
+        }
+
         emit(context, VM_OPR, OPR_SHL,0,0);
         return true;
     }
 
-    // SHL expression ?
+    // SAR expression ?
     if (match(context, TOK_SAR))
     {
         if (!parse_expression(context))
         {
-            parse_error("Expect an expression after SAR", context->lex.linenum);
+            parse_error("Expect an expression after SAR\n", context->lex.linenum);
             return false;
         }
+
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        
+        if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+        {
+            parse_error("argument of SHL must be INTEGER or CONSTANT\n", context->lex.linenum);
+            return false;
+        }
+
         emit(context, VM_OPR, OPR_SAR,0,0);
         return true;
     }
@@ -376,7 +508,15 @@ bool parse_expression(parse_context_t *context)
     }
     else if (match(context, TOK_MINUS))
     {
-        emit(context, VM_OPR, OPR_NEG,0,0);
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        
+        if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+        {
+            parse_error("argument of unary minus must be INTEGER or CONSTANT\n", context->lex.linenum);
+            return false;
+        }
+
+        emit(context, VM_OPR, OPR_NEG, 0, 0);
     }
 
     if (!parse_term(context))
@@ -396,10 +536,46 @@ bool parse_expression(parse_context_t *context)
 
         if (optok == TOK_PLUS)
         {
+            vartype_t op1 = ts_item(&context->typestack, 0);
+            
+            if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+            {
+                parse_error("argument of + be INTEGER or CONSTANT\n", context->lex.linenum);
+                return false;
+            }
+
+            vartype_t op2 = ts_item(&context->typestack, 1);
+            
+            if ((op2 != TYPE_INT) && (op2 != TYPE_CONST))
+            {
+                parse_error("argument of + be INTEGER or CONSTANT\n", context->lex.linenum);
+                return false;
+            }
+
+            ts_pop(&context->typestack);
+
             emit(context, VM_OPR, OPR_ADD, 0,0);
         }
         else
         {
+           vartype_t op1 = ts_item(&context->typestack, 0);
+            
+            if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+            {
+                parse_error("argument of - must be INTEGER or CONSTANT\n", context->lex.linenum);
+                return false;
+            }
+
+            vartype_t op2 = ts_item(&context->typestack, 1);
+            
+            if ((op2 != TYPE_INT) && (op2 != TYPE_CONST))
+            {
+                parse_error("argument of - must be INTEGER or CONSTANT\n", context->lex.linenum);
+                return false;
+            }
+
+            ts_pop(&context->typestack);
+
             emit(context, VM_OPR, OPR_SUB, 0,0);
         }
     }
@@ -414,6 +590,14 @@ bool parse_condition(parse_context_t *context)
         if (!parse_expression(context))
         {
             parse_error("Expected a statement\n", context->lex.linenum);
+            return false;
+        }
+
+        vartype_t op1 = ts_item(&context->typestack, 0);
+            
+        if ((op1 != TYPE_INT) && (op1 != TYPE_CONST))
+        {
+            parse_error("argument of ODD must be INTEGER or CONSTANT\n", context->lex.linenum);
             return false;
         }
 
@@ -466,6 +650,21 @@ bool parse_condition(parse_context_t *context)
         return false;
     }
 
+    vartype_t op1 = ts_item(&context->typestack, 0);
+    vartype_t op2 = ts_item(&context->typestack, 1);
+
+    ts_pop(&context->typestack);
+    ts_pop(&context->typestack);
+
+    if (op1 == TYPE_CONST) op1 = TYPE_INT;
+    if (op2 == TYPE_CONST) op2 = TYPE_INT;
+
+    if (op1 != op2)
+    {
+        parse_error("Types must be identical\n", context->lex.linenum);
+        return false;        
+    }
+
     if (condition == TOK_EQUAL)
     {
         emit(context, VM_OPR, OPR_EQ,0,0);
@@ -496,6 +695,7 @@ bool parse_condition(parse_context_t *context)
         return false;
     }
 
+    ts_push(&context->typestack, TYPE_INT); // condition result
     return true;
 }
 
@@ -523,14 +723,25 @@ bool parse_statement(parse_context_t *context)
         }        
 
         sym_t *s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
-        if ((s == NULL) || (s->type != TYPE_INT))
+        if (s == NULL)
         {
             parse_error("Cannot find variable\n", context->lex.linenum);
             return false;
         }
 
-        emit(context, VM_OPR, OPR_ININT,0,0);  // read value onto stack
-        emit(context, VM_STO,0, context->proclevel - s->level, s->offset+3);        
+        switch(s->type)
+        {
+        case TYPE_INT:
+            emit(context, VM_OPR, OPR_ININT,0,0);  // read value onto stack
+            break;
+        case TYPE_CHAR:
+            emit(context, VM_OPR, OPR_INCHAR,0,0);  // read value onto stack
+            break;
+        default:
+            parse_error("Expected INT or CHAR type\n", context->lex.linenum);
+            return false;
+        }
+        emit(context, VM_STO,0, context->proclevel - s->level, s->offset+3);
     }
     // ! expression
     else if (match(context, TOK_EXCLAMATION))
@@ -540,7 +751,22 @@ bool parse_statement(parse_context_t *context)
             parse_error("! expression invalid\n", context->lex.linenum);
         }
 
-        emit(context, VM_OPR, OPR_OUTINT, 0,0);
+        vartype_t op = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        switch(op)
+        {
+        case TYPE_INT:
+        case TYPE_CONST:
+            emit(context, VM_OPR, OPR_OUTINT,0,0);  // read value onto stack
+            break;
+        case TYPE_CHAR:
+            emit(context, VM_OPR, OPR_OUTCHAR,0,0);  // read value onto stack
+            break;
+        default:
+            parse_error("Expected INT, CHAR or CONST type\n", context->lex.linenum);
+            return false;
+        }
 
         while(match(context, TOK_COMMA))
         {
@@ -551,7 +777,23 @@ bool parse_statement(parse_context_t *context)
 
             emit(context, VM_LIT, 0,0,32);
             emit(context, VM_OPR, OPR_OUTCHAR,0,0);
-            emit(context, VM_OPR, OPR_OUTINT,0,0);
+            
+            vartype_t op = ts_item(&context->typestack, 0);
+            ts_pop(&context->typestack);
+
+            switch(op)
+            {
+            case TYPE_INT:
+            case TYPE_CONST:
+                emit(context, VM_OPR, OPR_OUTINT,0,0);  // read value onto stack
+                break;
+            case TYPE_CHAR:
+                emit(context, VM_OPR, OPR_OUTCHAR,0,0);  // read value onto stack
+                break;
+            default:
+                parse_error("Expected INT, CHAR or CONST type\n", context->lex.linenum);
+                return false;
+            }
         }
 
         // line feed
@@ -588,6 +830,8 @@ bool parse_statement(parse_context_t *context)
             parse_error("Expected a condition in IF statement\n", context->lex.linenum);
             return false;            
         }
+
+        ts_pop(&context->typestack);    
 
         // jump over the THEN code if condition is false
         // the jump address needs a fixup
@@ -644,6 +888,8 @@ bool parse_statement(parse_context_t *context)
             return false;            
         }
 
+        ts_pop(&context->typestack);
+
         // forward jump
         uint16_t jpc_label = context->labelid++;
         emit_with_label(VM_JPC, jpc_label);
@@ -676,7 +922,7 @@ bool parse_statement(parse_context_t *context)
 
         if (ident == NULL)
         {
-            parse_error("Cannot find symbol", context->lex.linenum);
+            parse_error("Cannot find symbol\n", context->lex.linenum);
             return false;
         }
 
@@ -693,13 +939,21 @@ bool parse_statement(parse_context_t *context)
             return false;            
         }
 
-        if (ident->type == TYPE_INT)
+        vartype_t expr = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        if (expr == TYPE_CONST)
+        {
+            expr = TYPE_INT;
+        }
+
+        if (ident->type == expr)
         {
             emit(context, VM_STO, 0, context->proclevel - ident->level, ident->offset+3);
         }
         else
         {
-            parse_error("Expected a variable after FOR\n", context->lex.linenum);
+            parse_error("Type mismatch after FOR\n", context->lex.linenum);
             return false;
         }
 
@@ -719,7 +973,19 @@ bool parse_statement(parse_context_t *context)
 
         if (!parse_expression(context))
         {
-            parse_error("Expected an identifier after FOR\n", context->lex.linenum);
+            parse_error("Expected an identifier after TO\n", context->lex.linenum);
+            return false;            
+        }
+
+        expr = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        if (expr == TYPE_CONST)
+            expr = TYPE_INT;
+
+        if (ident->type != expr)
+        {
+            parse_error("Type mismatch after TO\n", context->lex.linenum);
             return false;            
         }
 
@@ -751,6 +1017,9 @@ bool parse_statement(parse_context_t *context)
         emit_txt("; end FOR\n");
     }
 
+    // check that the operation stack is empty
+    check_tstack(context);
+
     // everything is optional, so we always return true.
     return true;
 }
@@ -768,13 +1037,13 @@ bool parse_const(parse_context_t *context)
 
     if (!match(context, TOK_EQUAL))
     {
-        parse_error("Expected =", context->lex.linenum);
+        parse_error("Expected =\n", context->lex.linenum);
         return false;
     }
 
-    if (!match(context, TOK_INTEGER))
+    if (!match(context, TOK_NUMBER))
     {
-        parse_error("Expected INTEGER\n", context->lex.linenum);
+        parse_error("Expected NUMBER\n", context->lex.linenum);
         return false;
     }    
 
@@ -794,12 +1063,12 @@ bool parse_const(parse_context_t *context)
 
         if (!match(context, TOK_EQUAL))
         {
-            parse_error("Expected =", context->lex.linenum);
+            parse_error("Expected =\n", context->lex.linenum);
             return false;
         }
-        if (!match(context, TOK_INTEGER))
+        if (!match(context, TOK_NUMBER))
         {
-            parse_error("Exptected INTEGER\n", context->lex.linenum);
+            parse_error("Exptected NUMBER\n", context->lex.linenum);
             return false;
         }
 
@@ -808,7 +1077,7 @@ bool parse_const(parse_context_t *context)
 
     if (!match(context, TOK_SEMICOL))
     {
-        parse_error("Expected ;", context->lex.linenum);
+        parse_error("Expected ;\n", context->lex.linenum);
         return false;
     }
     return true;
@@ -824,7 +1093,12 @@ bool parse_var(parse_context_t *context)
 
     const char *ident    = context->matchstart;
     uint16_t    identlen = context->matchlen;
-    sym_add(&context->symtbl, TYPE_INT, ident, identlen);
+
+    // Add the symbol to the symbol table
+    // at this point, we don't know the type,
+    // so we specify TYPE_NONE. It will be
+    // changed/updated at the end of this function.
+    sym_add(&context->symtbl, TYPE_NONE, ident, identlen);
 
     while(match(context, TOK_COMMA))
     {
@@ -836,14 +1110,43 @@ bool parse_var(parse_context_t *context)
 
         ident    = context->matchstart;
         identlen = context->matchlen;
-        sym_add(&context->symtbl, TYPE_INT, ident, identlen);        
+        sym_add(&context->symtbl, TYPE_NONE, ident, identlen);        
+    }
+
+    if (!match(context, TOK_COLON))
+    {
+        parse_error("Expected :\n", context->lex.linenum);
+        return false;        
+    }
+
+    if (match(context, TOK_CHAR) || match(context, TOK_INTEGER))
+    {
+        switch(context->matchtok)
+        {
+        case TOK_CHAR:
+            sym_settype(&context->symtbl, TYPE_CHAR);
+            break;
+        case TOK_INTEGER:
+            sym_settype(&context->symtbl, TYPE_INT);
+            break;        
+        default:
+            // we should never end up here.
+            parse_error("parse_var: internal error\n", context->lex.linenum);
+            return false;
+        }
+    }
+    else
+    {
+        parse_error("Expected type name CHAR or INTEGER\n", context->lex.linenum);
+        return false;
     }
 
     if (!match(context, TOK_SEMICOL))
     {
-        parse_error("Expected ;", context->lex.linenum);
+        parse_error("Expected ;\n", context->lex.linenum);
         return false;
     }
+
     return true;
 }
 
@@ -942,6 +1245,9 @@ bool parse_block(parse_context_t *context, uint16_t labelid)
     if (!parse_statement(context))
         return false;
 
+    // check that the operation stack is empty
+    check_tstack(context);
+
     return true;
 }
 
@@ -955,6 +1261,7 @@ bool parse(char *src)
 
     lexer_init(&context.lex, src);
     sym_init(&context.symtbl);
+    ts_init(&context.typestack);
 
     // get first token
     if (!nextToken(&context))

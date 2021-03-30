@@ -27,7 +27,7 @@ static bool cmp(const char *s1, const char *s2, size_t len)
     return true;
 }
 
-bool sym_add(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namelen)
+bool sym_add(symtbl_t *tbl, const vartype_t tp, const char *name, uint16_t namelen)
 {
     //FIXME: check if the symbol is already in the table?
     sym_t *newsym = &tbl->syms[tbl->Nsymbols];
@@ -38,9 +38,10 @@ bool sym_add(symtbl_t *tbl, const symtype_t tp, const char *name, uint16_t namel
     newsym->namelen= namelen;
     cpy(newsym->name, name, namelen);
     
-
-    // only variables (integers) are stored in the local stack context.
-    if (tp == TYPE_INT)
+    // only variables are stored in the local stack context.
+    // type NONE is a temporary type, which will be replaced
+    // later in the parse cycle.
+    if ((tp == TYPE_INT) || (tp == TYPE_CHAR) || (tp == TYPE_ARRAY) || (tp == TYPE_NONE))
     {
         newsym->offset = tbl->offset;
         tbl->offset++;  //FIXME: this needs to change when we have data of different size
@@ -169,6 +170,9 @@ void sym_dump(symtbl_t *tbl)
         case TYPE_INT:
             printf("INT   %d\n", s->offset);
             break;
+        case TYPE_CHAR:
+            printf("CHAR  %d (%c)\n", s->offset, (char)s->offset);
+            break;            
         case TYPE_PROCEDURE:
             printf("PROC  @L%d\n", s->offset);
             break;        
@@ -197,4 +201,21 @@ uint16_t sym_numvariables(symtbl_t *tbl)
         }
     }
     return count;
+}
+
+void sym_settype(symtbl_t *tbl, const vartype_t tp)
+{
+    uint16_t idx = tbl->Nsymbols;
+    while(idx > 0)
+    {
+        idx--;
+        if (tbl->syms[idx].type == TYPE_NONE)
+        {
+            tbl->syms[idx].type = tp;
+        }
+        else
+        {
+            return;
+        }
+    }
 }

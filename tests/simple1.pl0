@@ -1,7 +1,7 @@
-Var local1;
+Var local1 : INTEGER;
 
 PROCEDURE PROC1;
-VAR test1,test2;
+VAR test1,test2 : INTEGER;
 BEGIN
   test1 := 1;
   test2 := 2;

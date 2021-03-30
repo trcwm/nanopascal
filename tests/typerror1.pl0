@@ -1,0 +1,9 @@
+var x : char;
+var y : integer;
+
+begin
+    x := 'C';
+    y := 123;
+    ! x;
+    ! y;
+end.

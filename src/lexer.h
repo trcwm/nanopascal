@@ -16,8 +16,9 @@ typedef enum
     TOK_NONE    = 0,
     TOK_EOF,
     TOK_IDENT,
-    TOK_INTEGER,
+    TOK_NUMBER,
     TOK_SEMICOL,
+    TOK_COLON,
     TOK_LPAREN,
     TOK_RPAREN,
     TOK_STAR,
@@ -36,6 +37,9 @@ typedef enum
     TOK_GREATER,            // >
     TOK_SLASH,              // /
     TOK_HASH,               // #
+    TOK_LBRACKET,
+    TOK_RBRACKET,
+    TOK_DOUBLEPERIOD,
     TOK_PROGRAM = 100,
     TOK_BEGIN,
     TOK_END,
@@ -54,7 +58,11 @@ typedef enum
     TOK_SAR,
     TOK_FOR,
     TOK_TO,
-    TOK_DOWNTO 
+    TOK_DOWNTO,
+    TOK_INTEGER,
+    TOK_CHAR,
+    TOK_OF,
+    TOK_ARRAY
 } token_t;
 
 typedef enum

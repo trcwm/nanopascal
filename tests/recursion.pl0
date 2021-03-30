@@ -1,10 +1,10 @@
-	VAR a1, recur;
+	VAR a1, recur : integer;
 
 	PROCEDURE p2;
-	VAR a2;
+	VAR a2 : integer;
 
 		PROCEDURE p3;
-		VAR a3;
+		VAR a3 : integer;
 
 		BEGIN // p3
 			a3 := 3;

@@ -1,8 +1,8 @@
 CONST xx = 10;
-VAR x, y, z, q, r, n, f;
+VAR x, y, z, q, r, n, f : INTEGER;
 
 PROCEDURE multiply;
-VAR a, b;
+VAR a, b : INTEGER;
 BEGIN
   a := x;
   b := y;
@@ -16,7 +16,7 @@ BEGIN
 END;
 
 PROCEDURE divide;
-VAR w;
+VAR w : INTEGER;
 BEGIN
   r := x;
   q := 0;
@@ -35,7 +35,7 @@ BEGIN
 END;
 
 PROCEDURE gcd;
-VAR f, g;
+VAR f, g : INTEGER;
 BEGIN
   f := x;
   g := y;

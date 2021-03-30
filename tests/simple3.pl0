@@ -1,8 +1,8 @@
 const max = 100;
-var arg, ret;
+var arg, ret : INTEGER;
 
 procedure isprime;
-var i;
+var i : INTEGER;
 begin
 	ret := 1;
 	i := 2;

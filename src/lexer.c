@@ -13,7 +13,7 @@
 // define PL/0 keywords
 // the order must be the same
 // as the TOK_ definitions starting at value 100
-#define NKEYWORDS 19
+#define NKEYWORDS 23
 const char* keywords[NKEYWORDS] =
 {
     "PROGRAM",
@@ -34,7 +34,11 @@ const char* keywords[NKEYWORDS] =
     "SAR",
     "FOR",
     "TO",
-    "DOWNTO"
+    "DOWNTO",
+    "INTEGER",
+    "CHAR",
+    "OF",
+    "ARRAY"
 };
 
 void lexer_init(lexer_context_t *context, char *source)
@@ -224,9 +228,26 @@ bool lexer_next(lexer_context_t *context)
                     lexer_accept(context);
                     lexer_emit(context, TOK_RPAREN);                    
                     return true; 
-                case '.':
+                case '[':
                     lexer_accept(context);
-                    lexer_emit(context, TOK_PERIOD);
+                    lexer_emit(context, TOK_LBRACKET);
+                    return true;
+                case ']':
+                    lexer_accept(context);
+                    lexer_emit(context, TOK_RBRACKET);
+                    return true;
+                case '.':
+                    if (lexer_peekNextChar(context) == '.')
+                    {
+                        lexer_accept(context);
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_DOUBLEPERIOD);
+                    }
+                    else
+                    {
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_PERIOD);
+                    }
                     return true;                      
                 case ',':
                     lexer_accept(context);
@@ -271,9 +292,9 @@ bool lexer_next(lexer_context_t *context)
                     }
                     else
                     {
-                        // FIXME: is this an error?
-                        // can the ':' appear by itself in PL/0?
-                        return false;
+                        lexer_accept(context);
+                        lexer_emit(context, TOK_COLON);
+                        return true;
                     }
                     break;
                 case '<':
@@ -339,7 +360,7 @@ bool lexer_next(lexer_context_t *context)
             }
             else
             {
-                lexer_emit(context, TOK_INTEGER);
+                lexer_emit(context, TOK_NUMBER);
                 context->state = LS_IDLE;
                 return true;
             }
