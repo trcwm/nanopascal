@@ -1,4 +1,4 @@
-var x,i;
+var x,i : integer;
 
 begin
     i := 8;

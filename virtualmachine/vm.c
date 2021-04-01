@@ -72,6 +72,7 @@ bool vm_execute(vm_context_t *c)
     instruction_t *ins = (instruction_t *)(c->mem + c->pc*sizeof(instruction_t));
     uint16_t level = 0;
     uint16_t imm16 = ins->opt16;
+    uint16_t idx   = 0; // index for array operations
 
     c->pc++;
     c->inscount++;
@@ -184,6 +185,17 @@ bool vm_execute(vm_context_t *c)
         //{
         //    printf("Storing to dstack address %d\n", (uint16_t)(base(c,level) + (int16_t)imm16));
         //}        
+        break;
+    case VM_LODX:
+        idx = c->dstack[c->t];  // get index / offset
+        level = (ins->opcode >> 4); // level
+        c->dstack[c->t] = c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16) + idx];
+        break;
+    case VM_STOX:
+        idx = c->dstack[c->t-1];  // get index / offset
+        level = (ins->opcode >> 4); // level
+        c->dstack[(uint16_t)(base(c,level) + (int16_t)imm16) + idx] = c->dstack[c->t];
+        c->t-=2;
         break;
     case VM_CAL:    // call procedure or function v,a
     {

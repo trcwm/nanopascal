@@ -92,6 +92,12 @@ void printins(const instruction_t *ins)
     case VM_STO:
         printf("STO lvl:%d  ofs:%d\n", opcode >> 4 ,imm16);
         break;
+    case VM_LODX:
+        printf("LODX lvl:%d  ofs:%d\n", opcode >> 4 ,imm16);
+        break;
+    case VM_STOX:
+        printf("STOX lvl:%d  ofs:%d\n", opcode >> 4 ,imm16);
+        break;        
     case VM_CAL:
         printf("CAL lvl:%d  0x%04X\n", opcode >> 4, imm16);
         break;

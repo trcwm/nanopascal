@@ -205,7 +205,13 @@ QString InstrModel::disasm(uint16_t pc) const
         
     case VM_HALT:
         return QString::asprintf("HALT");
-                                         
+
+    case VM_LODX:
+        return QString::asprintf("LODX\tlvl:%d\tofs:%d", opcode >> 4 ,imm16);
+        
+    case VM_STOX:
+        return QString::asprintf("STOX\tlvl:%d\tofs:%d", opcode >> 4 ,imm16);
+
     default:
         return QString::asprintf("???\n");
         

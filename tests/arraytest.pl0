@@ -1,0 +1,14 @@
+// Array test
+
+var arr : array [100] of integer;
+var I   : integer;
+
+begin
+  for I:=0 to 99 do
+  begin
+    arr[I] := I*I;
+    ! I, arr[I]
+  end;
+
+end.
+

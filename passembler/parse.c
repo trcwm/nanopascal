@@ -159,11 +159,11 @@ bool parse_instruction(parse_context_t *context)
         emit_ins(context, opcode, context->lex.lit);
         context->emitaddress++;
     }
-    else if ((optok == TOK_LOD) || (optok == TOK_STO))
+    else if ((optok == TOK_LOD) || (optok == TOK_STO) || (optok == TOK_LODX) || (optok == TOK_STOX))
     {
         if (token(context) != TOK_INTEGER)
         {
-            parse_error(context, "Expected integer level or aluop after opcode\n");
+            parse_error(context, "Expected integer level after opcode\n");
             return false;
         }
 

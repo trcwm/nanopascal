@@ -20,7 +20,7 @@ typedef struct
     int16_t         matchlen;       ///< string length of last matched token
     token_t         matchtok;       ///< matched token
 
-    typestack_t     typestack;
+    typestack_t     typestack;      ///< hold type information during expression parsing.
 
     uint16_t        labelid;        ///< id of next label to be emitted.
     uint16_t        number;         ///< last number emitted from the lexer
@@ -164,6 +164,12 @@ void emit(parse_context_t *context, opcode_t op, opr_t aluop, uint8_t level, uin
     case VM_HALT:
         printf("HALT\n");
         break;
+    case VM_LODX:
+        printf("LODX %d %d\n", level, imm16);
+        break;
+    case VM_STOX:
+        printf("STOX %d %d\n", level, imm16);
+        break;        
     default:
         printf("??? code:%d\n", op);
         break;
@@ -216,44 +222,6 @@ static bool match(parse_context_t *context, const token_t tok)
 bool parse_block(parse_context_t *context, uint16_t labelid);
 bool parse_expression(parse_context_t *context);
 
-#if 0
-bool parse_simple_type(parse_context_t *context)
-{
-    if (match(context, TOK_INTEGER))
-    {
-        //context->typeinfo = TYPE_INT;
-        return true;
-    }
-    
-    if (match(context, TOK_CHAR))
-    {
-        //context->typeinfo = TYPE_CHAR;
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_type(parse_context_t *context)
-{
-    if (match(context, TOK_ARRAY))
-    {
-        // no support for array - yet.
-        parse_error("No array support - yet", context->lex.linenum);
-        return false;
-    }
-    else
-    {
-        if (!parse_simple_type(context))
-        {
-            parse_error("Expected a simply type", context->lex.linenum);
-            return false;
-        }
-    }
-    return true;
-}
-#endif 
-
 bool parse_const_id(parse_context_t *context)
 {
     const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
@@ -271,6 +239,7 @@ bool parse_const_id(parse_context_t *context)
     return false;
 }
 
+/** load the stack with the variable requested */
 bool parse_variable_id(parse_context_t *context)
 {
     const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
@@ -291,11 +260,115 @@ bool parse_variable_id(parse_context_t *context)
     return false;
 }
 
+/** load the stack with the array element requested */
+bool parse_array_id(parse_context_t *context)
+{
+    const sym_t* s = sym_lookup(&context->symtbl, context->matchstart, context->matchlen);
+    if (s == NULL)
+    {
+        return false;
+    }
+
+    if (s->type == TYPE_ARRAY)
+    {
+        // expect [ number ]
+        if (!match(context, TOK_LBRACKET))
+        {
+            parse_error("Expected '['\n", context->lex.linenum);
+            return false;
+        }
+
+        if (!parse_expression(context))
+        {
+            parse_error("Expected an expression between '[ ]'\n", context->lex.linenum);
+        }
+
+        // check type is integer
+        vartype_t op1 = ts_item(&context->typestack, 0);
+        ts_pop(&context->typestack);
+
+        if (!((op1 == TYPE_INT) || (op1 == TYPE_CONST)))
+        {
+            parse_error("Expected an INTEGER or CONST type between '[ ]'\n", context->lex.linenum);
+            return false;
+        }
+
+        if (!match(context, TOK_RBRACKET))
+        {
+            parse_error("Expected ']'\n", context->lex.linenum);
+            return false;
+        }
+
+        ts_push(&context->typestack, s->subtype);
+
+        // the offset is w.r.t. the base pointer
+        // which holds T,B and the return address
+        // so local variables are offset by an additional 3.
+        emit(context, VM_LODX, 0, context->proclevel - s->level, s->offset + 3);
+        return true;
+    }
+    return false;
+}
+
+bool parse_array_type(parse_context_t *context, uint16_t startSymbolId)
+{
+    if (!match(context, TOK_LBRACKET))
+    {
+        parse_error("Expected [ after array\n", context->lex.linenum);
+        return false;
+    }
+
+    if (!match(context, TOK_NUMBER))
+    {
+        parse_error("Expected NUMBER after [\n", context->lex.linenum);
+        return false;
+    }
+
+    uint16_t arraylen = context->number;
+
+    if (!match(context, TOK_RBRACKET))
+    {
+        parse_error("Expected ] in array\n", context->lex.linenum);
+        return false;        
+    }
+
+    if (!match(context, TOK_OF))
+    {
+        parse_error("Expected OF in array\n", context->lex.linenum);
+        return false;        
+    }
+
+    if (match(context, TOK_INTEGER) || match(context, TOK_CHAR))
+    {
+        //FIXME: add array to sym table
+        switch(context->matchtok)
+        {
+        case TOK_INTEGER:
+            for(uint16_t id = startSymbolId; id < context->symtbl.Nsymbols; id++)
+                sym_update(&context->symtbl, id, TYPE_ARRAY, TYPE_INT, arraylen);
+            break;
+        case TOK_CHAR:
+            for(uint16_t id = startSymbolId; id < context->symtbl.Nsymbols; id++)
+                sym_update(&context->symtbl, id, TYPE_ARRAY, TYPE_CHAR, arraylen);        
+            break;
+        default:
+            break;
+        }
+        
+        return true;
+    }
+    else
+    {
+        parse_error("Expected INTEGER or CHAR in array\n", context->lex.linenum);
+        return false;        
+    }
+}
+
 bool parse_factor(parse_context_t *context)
 {
     if (match(context, TOK_IDENT))
     {
-        // accept constants or variables
+        // accept constants, variables or arrays
 
         if (parse_const_id(context))
         {
@@ -303,6 +376,11 @@ bool parse_factor(parse_context_t *context)
         }
 
         if (parse_variable_id(context))
+        {
+            return true;
+        }
+
+        if (parse_array_id(context))
         {
             return true;
         }
@@ -405,31 +483,76 @@ bool parse_call(parse_context_t *context)
 
 bool parse_assignment(parse_context_t *context, const char *identname, uint16_t identlen)
 {
-    if (!match(context, TOK_ASSIGN))
-    {
-        parse_error("Expected :=\n", context->lex.linenum);
-        return false;
-    }
-
-    if (!parse_expression(context))
-    {
-        return false;
-    }
-
+    // check if the identifier is an array
     const sym_t* s = sym_lookup(&context->symtbl, identname, identlen);
     if (s == NULL)
     {
         parse_error("Cannot find symbol\n", context->lex.linenum);
         return false;
     }
-    if (s->type == TYPE_INT)
+    
+    if (s->type == TYPE_ARRAY)
     {
+        if (!match(context,TOK_LBRACKET))
+        {
+            return false;
+        }
+
+        // parse the expression to get the index
+        if (!parse_expression(context))
+        {
+            return false;
+        }
+
+        if (!match(context,TOK_RBRACKET))
+        {
+            return false;
+        }
+
+        if (!match(context, TOK_ASSIGN))
+        {
+            parse_error("Expected :=\n", context->lex.linenum);
+            return false;
+        }
+
+        // parse the expression to get the data to be stored
+        if (!parse_expression(context))
+        {
+            return false;
+        }
+
+        vartype_t op1 = ts_item(&context->typestack, 1);
+        ts_pop(&context->typestack);
+        ts_pop(&context->typestack);
+
+        if ((op1 != TYPE_CONST) && (op1 != TYPE_INT))
+        {
+            parse_error("Array index type must be INT or CONST\n", context->lex.linenum);
+            return false;
+        }
+
+        emit(context, VM_STOX, 0, context->proclevel - s->level, s->offset+3);
+    }
+    else if (s->type == TYPE_INT)
+    {
+        if (!match(context, TOK_ASSIGN))
+        {
+            parse_error("Expected :=\n", context->lex.linenum);
+            return false;
+        }
+
+        if (!parse_expression(context))
+        {
+            return false;
+        }
+
         ts_pop(&context->typestack);
         emit(context, VM_STO, 0, context->proclevel - s->level, s->offset+3);
     }
     else
     {
         parse_error("Wrong type\n", context->lex.linenum);
+        return false;
     }
 
     return true;
@@ -1047,8 +1170,8 @@ bool parse_const(parse_context_t *context)
         return false;
     }    
 
-    sym_add(&context->symtbl, TYPE_CONST, ident, identlen);
-    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = context->number;
+    sym_add(&context->symtbl, ident, identlen);
+    sym_set_const(&context->symtbl, context->symtbl.Nsymbols-1, context->number);
 
     while(match(context, TOK_COMMA))
     {
@@ -1072,7 +1195,8 @@ bool parse_const(parse_context_t *context)
             return false;
         }
 
-        sym_add(&context->symtbl, TYPE_CONST, ident, identlen);
+        sym_add(&context->symtbl, ident, identlen);
+        sym_set_const(&context->symtbl, context->symtbl.Nsymbols-1, context->number);
     }
 
     if (!match(context, TOK_SEMICOL))
@@ -1098,7 +1222,9 @@ bool parse_var(parse_context_t *context)
     // at this point, we don't know the type,
     // so we specify TYPE_NONE. It will be
     // changed/updated at the end of this function.
-    sym_add(&context->symtbl, TYPE_NONE, ident, identlen);
+
+    uint16_t startSymbolId = context->symtbl.Nsymbols;
+    sym_add(&context->symtbl, ident, identlen);
 
     while(match(context, TOK_COMMA))
     {
@@ -1110,7 +1236,7 @@ bool parse_var(parse_context_t *context)
 
         ident    = context->matchstart;
         identlen = context->matchlen;
-        sym_add(&context->symtbl, TYPE_NONE, ident, identlen);        
+        sym_add(&context->symtbl, ident, identlen);
     }
 
     if (!match(context, TOK_COLON))
@@ -1119,16 +1245,27 @@ bool parse_var(parse_context_t *context)
         return false;        
     }
 
-    if (match(context, TOK_CHAR) || match(context, TOK_INTEGER))
+    // parse the type information
+
+    if (match(context, TOK_ARRAY))
+    {
+        if (!parse_array_type(context, startSymbolId))
+        {
+            return false;
+        }
+    }
+    else if (match(context, TOK_CHAR) || match(context, TOK_INTEGER))
     {
         switch(context->matchtok)
         {
         case TOK_CHAR:
-            sym_settype(&context->symtbl, TYPE_CHAR);
+            for(uint16_t id = startSymbolId; id < context->symtbl.Nsymbols; id++)
+                sym_update(&context->symtbl, id, TYPE_CHAR, TYPE_NONE, 1);
             break;
         case TOK_INTEGER:
-            sym_settype(&context->symtbl, TYPE_INT);
-            break;        
+            for(uint16_t id = startSymbolId; id < context->symtbl.Nsymbols; id++)
+                sym_update(&context->symtbl, id, TYPE_INT, TYPE_NONE, 1);
+            break;
         default:
             // we should never end up here.
             parse_error("parse_var: internal error\n", context->lex.linenum);
@@ -1137,7 +1274,7 @@ bool parse_var(parse_context_t *context)
     }
     else
     {
-        parse_error("Expected type name CHAR or INTEGER\n", context->lex.linenum);
+        parse_error("Expected type name CHAR, INTEGER or ARRAY\n", context->lex.linenum);
         return false;
     }
 
@@ -1165,13 +1302,14 @@ bool parse_procedure(parse_context_t *context)
     emit_tokstr(procname, procnamelen);
     emit_txt("\n");
 
-    if (!sym_add(&context->symtbl, TYPE_PROCEDURE, procname, procnamelen))
+    if (!sym_add(&context->symtbl, procname, procnamelen))
         return false;
     
     uint16_t proc_label = context->labelid++;
     
     // add label id to the procedure symbol
-    context->symtbl.syms[context->symtbl.Nsymbols-1].offset = proc_label;
+    //context->symtbl.syms[context->symtbl.Nsymbols-1].offset = proc_label;
+    sym_set_procedure(&context->symtbl, context->symtbl.Nsymbols-1, proc_label);
 
     sym_enter(&context->symtbl);
 
@@ -1237,9 +1375,9 @@ bool parse_block(parse_context_t *context, uint16_t labelid)
     emit_label(labelid);
 
     // create space for local variables    
-    uint16_t local_varcount = sym_numvariables(&context->symtbl);
+    uint16_t space_required = sym_get_local_space(&context->symtbl);
     emit_txt("INT ");
-    printf("%d\n", local_varcount+3);   // 3 for local call pointers?    
+    printf("%d\n", space_required+3);   // 3 for local call pointers?    
 
     // one statement
     if (!parse_statement(context))

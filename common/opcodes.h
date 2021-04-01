@@ -35,6 +35,8 @@ typedef enum
     VM_INT      = 5,        // increment stack pointer 0,n
     VM_JMP      = 6,        // unconditional jump 0,a
     VM_JPC      = 7,        // jump if false (tos = 0) 0,a
+    VM_LODX     = 8,        // load indexed v,d with offset loaded onto stack
+    VM_STOX     = 9,        // load indexed v,d with offset loaded onto stack
     VM_HALT
 } opcode_t; // lower nibble code
 

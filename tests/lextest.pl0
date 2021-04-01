@@ -1,4 +1,4 @@
-VAR x, squ;
+VAR x, squ : integer;
 
 PROCEDURE square;
 BEGIN
